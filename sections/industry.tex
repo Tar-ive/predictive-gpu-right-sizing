@@ -1,0 +1,65 @@
+\section{Background: How Commercial GPU Schedulers Optimize Allocation}
+\label{sec:industry}
+
+This section surveys how hyperscalers and platform vendors raise GPU utilization in production, with emphasis on \emph{what signals they use}, \emph{at what granularity they allocate}, and \emph{which constraints bind}. Vendor-reported numbers are labelled as such.
+
+\subsection{Alibaba (the operator behind our trace)}
+
+\paragraph{ASI, OSDI~'26~\cite{li2026asi}.} The paper accompanying our trace finds that \emph{high GPU demand does not imply high effective utilization}: idle GPUs are stranded across nodes, lack matching CPUs, or violate network locality, and users reserve ample headroom for production safety (diurnal peaks, failover, peak events). Key facts for this project:
+\begin{itemize}
+  \item Online inference is 63\% recommendation models; classical DNNs (CTR, recommendation, OCR) take $\approx$70\% of online-inference GPU-hours. GenAI is 71\% of training and 98\% of offline inference. Over 99\% of jobs pin a specific GPU model.
+  \item Online-inference median SM utilization is 6\% and median GPU-memory utilization 30\%. GenAI inference uses 94\% of GPU memory but only 5\% of SM; conventional DNN inference uses 20\% memory and 6\% SM.
+  \item GPU sharing is rare and fractional fragmentation is ``now negligible''; fractional requests come almost only from CV and recommendation models using MPS, because MPS/MIG isolation is coarse and GenAI memory footprints are large.
+  \item Deployed mechanisms act \emph{after} reservation: IPC defragmentation reduces nodes with slack by 20.2\%; \textbf{SpotGPU} lends high-priority jobs' reserved-but-idle capacity to preemptible low-priority jobs, raising the allocation ratio from 68\% to 93\%, and its preemption-cost-aware victim selection cuts low-priority job completion time by 24\%.
+  \item Colocating CPU jobs lowers training SM utilization by 10\% (median) and 18\% (P90). The paper names GenAI (memory-bound) + DNN (compute-light) colocation as complementary but unrealized, because MIG is ``too static'' and time-sharing violates SLOs.
+\end{itemize}
+
+\paragraph{Earlier Alibaba systems.} The PAI trace study~\cite{weng2022mlaas} found the median instance uses 0.042 GPU, and that sharing would need only 50\% of requested GPUs on average (73\% savings at peak); over 75\% of CTR instances use less than 0.1 GPU. FGD~\cite{weng2023fgd} schedules fractional GPU requests to minimize fragmentation, cutting unallocated GPUs by up to 49\% in emulation. AntMan~\cite{xiao2020antman} co-designs the scheduler with DL frameworks to raise memory and compute utilization by 42\% and 34\%. Prism~\cite{yang2025prism} disaggregates CPU and GPU parts of DLRM serving, cutting GPU fragmentation by 27\%. Aegaeon~\cite{xiang2025aegaeon} pools GPUs across many LLMs with token-level model switching, reporting a reduction from 1{,}192 to 213 H20 GPUs ($\approx$82\%) in a three-month beta.
+
+\subsection{Google}
+\textbf{Autopilot}~\cite{rzadca2020autopilot} vertically right-sizes Borg tasks from 5-minute usage histograms, using decayed percentile recommenders (e.g.\ P98 or max for memory depending on OOM tolerance) plus a 10--15\% safety margin, and an ML recommender that trades overrun against underrun cost. It cut slack to 23\% (ML) and 31\% (moving window) versus 46--60\% for manually sized jobs and reduced severe OOMs 10$\times$. Kubernetes' Vertical Pod Autoscaler descends from it. For GPUs, \textbf{GKE}~\cite{gke2026sharing} offers three sharing strategies: MIG (hardware isolation, up to 7 slices), time-sharing (no memory isolation between clients), and MPS (limited isolation), selected through node labels.
+
+\subsection{Amazon Web Services}
+\textbf{SageMaker inference components}~\cite{aws2023sagemaker} let many models share an endpoint with per-model accelerator allocations, scale-to-zero, and utilization-aware placement; AWS reports 50\% lower deployment cost on average (vendor claim). On \textbf{EKS}~\cite{aws2026eks}, GPU sharing uses NVIDIA time-slicing (no memory isolation) or MIG (hardware isolation, but re-partitioning requires a GPU reset). Karpenter counts every \texttt{nvidia.com/gpu} request as a full GPU even under time-slicing, which limits autoscaled sharing.
+
+\subsection{Microsoft}
+The \textbf{Philly} study~\cite{jeon2019philly} reported $\approx$52\% average utilization of in-use GPUs, driven by locality/gang scheduling and colocation interference, and $\approx$30\% of jobs failing, mostly early. \textbf{Gandiva}~\cite{xiao2018gandiva} exploits training-iteration predictability for time-slicing and migration. \textbf{Singularity}~\cite{shukla2022singularity} provides transparent, checkpoint-based preemption, migration and elastic resizing across a global fleet. \textbf{Resource Central}~\cite{cortez2017resource} is the closest analogue to Model A: it predicts VM utilization buckets from admission-time attributes and subscription history (79--90\% accuracy) and drives safe oversubscription in Azure. An ICSE~'24 study~\cite{gao2024lowutil} found most low-GPU-utilization jobs are fixable with small code changes. AKS exposes MIG node pools with profiles fixed at creation~\cite{azure2026mig}.
+
+\subsection{Meta}
+Meta's ads/DLRM inference fleet has a long tail of low-utilization models caused by tail-latency provisioning~\cite{meta2023multitenancy}. Meta chose hardware multi-tenancy (static, reconfigurable only when idle) over software multi-tenancy because a single fault kills every process on a shared GPU, and sizes containers from per-model load tests.
+
+\subsection{NVIDIA platform mechanisms}
+\textbf{MIG}~\cite{nvidia2026mig} partitions an H100 80GB into fixed profiles (e.g.\ 7$\times$1g.10gb, 3$\times$2g.20gb, 2$\times$3g.40gb). \textbf{MPS} partitions SMs and memory in software. The open-source \textbf{KAI Scheduler} (from Run:ai) adds fractional GPU allocation and queue-based fairness to Kubernetes. \textbf{Dynamo}~\cite{nvidia2025dynamo} disaggregates LLM prefill and decode with dynamic GPU scheduling.
+
+\subsection{Colocation and interference research}
+Gavel~\cite{narayanan2020gavel} uses per-job, per-accelerator throughput matrices; REEF~\cite{han2022reef} offers microsecond preemption so real-time inference can share with best-effort work; Orion~\cite{strati2024orion} schedules at operator level using each kernel's compute- vs.\ memory-bound profile; Usher~\cite{shubha2024usher} estimates model resource needs from kernels and places to avoid interference; MuxServe~\cite{duan2024muxserve} co-locates LLMs by popularity, separating prefill and decode; iGniter~\cite{xu2022igniter} models inference latency under colocation. The signals that predict interference are consistent across these papers: compute vs.\ memory-bandwidth intensity, memory/KV-cache footprint, request burstiness, host-CPU contention, and model popularity.
+
+\subsection{Prediction of needs and failures}
+Beyond Autopilot and Resource Central, MagicScaler~\cite{pan2023magicscaler} uses uncertainty-aware forecasts with stochastic QoS constraints, and Helios~\cite{hu2021helios} uses history-based duration prediction for scheduling. Conformal prediction~\cite{angelopoulos2021gentle} and conformalized quantile regression~\cite{romano2019cqr} provide distribution-free coverage; we found no peer-reviewed application to GPU slice sizing, which is a gap this project fills. \textbf{Closest prior work to Model B:} Zhang and Liao~\cite{zhang2026ineffective} (arXiv, 18 Oct 2026) study ``ineffective occupancy'' on an Alibaba GPU trace: 52.70\% of execution records never became ready; a gradient-boosted classifier on admission attributes reaches ROC-AUC 0.8187 under machine-grouped 5-fold CV; and readiness-aware scheduling cuts ineffective occupancy from 43.64\% to 27.15\%. The trace version is not stated on the abstract page.
+
+\paragraph{How this project differs from Zhang and Liao.} (i) Our Model B is evaluated on \emph{unseen clusters} (LOCO) and on \emph{future days}, not grouped CV within a pool, which explains a lower AUC (0.65--0.75 vs.\ 0.82) and exposes the calibration-transfer problem; (ii) we score calibration (ECE), not only discrimination; (iii) Model B is used as a \emph{veto} on Model A's shrink decisions, so the joint allocation-and-readiness question is new; (iv) our population is restricted to online inference (rec + GenAI). A direct replication of their protocol on D2 is a cheap robustness check (added to E8).
+
+\subsection{Summary of industry approaches}
+
+\begin{table}[h]
+\centering\scriptsize
+\caption{Commercial and production GPU allocation approaches.}
+\label{tab:industry}
+\begin{tabularx}{\linewidth}{@{}P{2.3cm}P{2.6cm}P{2.3cm}LP{2.2cm}@{}}
+\toprule
+System & Signals & Granularity & Key constraint & Reported effect \\
+\midrule
+Alibaba ASI SpotGPU & Reserved vs.\ used, priority, checkpoint age & Whole job / GPU & Preemptible LP only; HP untouched & Allocation 68\%\ra93\% \\
+Alibaba Aegaeon & Per-model request rate, tokens & Token-level model switching & LLM SLOs & 1{,}192\ra213 GPUs \\
+Alibaba FGD & Fractional requests, node state & Fractional GPU & Fragmentation & $-$49\% unallocated \\
+Google Autopilot & 5-min usage histograms & CPU/RAM limits & OOM tolerance, 10--15\% margin & Slack 46--60\%\ra23\% \\
+GKE / EKS / AKS & Admin-chosen strategy & MIG / MPS / time-slice & Isolation, static profiles & -- \\
+AWS SageMaker IC & Per-model traffic, utilization & Per-model accelerator share & Endpoint SLO & $-$50\% cost (vendor) \\
+Azure Resource Central & Admission attributes, history & VM utilization buckets & Safe oversubscription & 79--90\% accuracy \\
+Meta inference & Per-model load tests & Container ``T-shirt'' sizes & Fault isolation & ``Appreciable'' \\
+NVIDIA MIG / KAI / Dynamo & Profiles, queues, phase & Up to 7 slices; prefill/decode & Fixed profiles & -- \\
+\midrule
+\textbf{This project} & Request, history, cluster load, occupancy & 27-size trace grid & $U \le 5\%$, readiness risk cap & $\approx$21--25\% reserved GPU-h (opportunity) \\
+\bottomrule
+\end{tabularx}
+\end{table}

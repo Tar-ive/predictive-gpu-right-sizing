@@ -1,0 +1,132 @@
+\section{Proposed Experiments and Feature Engineering}
+\label{sec:experiments}
+
+Every experiment below is \status{proposed}: designed, with a hypothesis and a decision rule fixed in advance, but not yet run. All keep the same splits, LOCO protocol, conformal margins and metrics as \cref{sec:method}, so results remain comparable to \cref{tab:modelA,tab:modelB}. Each is tagged by the model it informs: \textbf{A} (allocation), \textbf{B} (readiness/failure), or \textbf{A+B} (policy).
+
+\subsection{New feature families}
+
+\begin{table}[h]
+\centering\small
+\caption{Candidate features. All are computed strictly from information available at admission time $t_0$ (or at $t_0 + k$ hours for E4).}
+\label{tab:features}
+\begin{tabularx}{\linewidth}{@{}P{2.5cm}LP{0.9cm}P{1.1cm}@{}}
+\toprule
+Family & Definition (at admission) & Model & Exp. \\
+\midrule
+Server workload mix & Share of the target server's allocated GPUs held by rec / GenAI / training / offline-inference / dev pods; Shannon entropy of that mix; count of distinct workload types. & A, B & E1 \\
+Switch (ASW) mix & Same shares aggregated over the access switch; captures network and host contention beyond one server. & A, B & E1 \\
+Same-type co-tenancy & Number of pods of the \emph{same workload} already on the server (replica spreading vs.\ stacking). & B & E1 \\
+Compatibility & Requested GPU memory $/$ GPU-type memory capacity; GPU-type scarcity = free GPUs of that type in the cluster $/$ requests pending; historical failure rate of (model type $\times$ GPU type $\times$ slice) cell, hierarchically smoothed. & B (A) & E2 \\
+Normalized need & MVF rescaled by GPU-type throughput so need is comparable across generations. & A & E2 \\
+Priority / production & Priority class (production vs.\ best-effort / spot); preemptible flag; tenant's share of high-priority pods. & A, B & E3 \\
+Runtime shape & From the first $k$ hours of telemetry: peak-to-mean ratio, coefficient of variation, 24-h autocorrelation (diurnal strength), slope. & A & E4 \\
+Memory headroom & Max / P99 of GPU-memory use (vs.\ P90 of utilization) to separate hard (OOM) from soft (slowdown) constraints. & A & E5, E9 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Experiment cards}
+
+\newcommand{\expcard}[7]{%
+\begin{tcolorbox}[colback=white,colframe=black!25,boxrule=0.5pt,arc=2pt,left=5pt,right=5pt,top=3pt,bottom=3pt,title={\small\textbf{#1}\hfill\textsc{#2}},colbacktitle=soft,coltitle=black,fonttitle=\small]
+\small
+\textbf{Hypothesis.} #3\par\smallskip
+\textbf{Design.} #4\par\smallskip
+\textbf{Metric \& decision rule.} #5\par\smallskip
+\textbf{Why it matters.} #6\par\smallskip
+\textbf{Feasibility.} #7
+\end{tcolorbox}}
+
+\expcard{E1. Workload mixing: recommendation grouped vs.\ mixed with GenAI}{A, B}
+{(H5) Rec pods admitted to servers whose GPUs are predominantly held by other rec pods have lower and more predictable MVF than rec pods co-located with GenAI or training. Co-location features reduce A's pinball loss and raise B's PR-AUC.}
+{(i) Stratify D1 rec pods into \emph{rec-homogeneous} ($\ge$80\% of the server's allocated GPUs are rec), \emph{GenAI-mixed} ($\ge$20\% GenAI), and \emph{other-mixed}. Compare MVF distributions, within-workload variance, and A1 pinball loss by stratum. (ii) Add the server/ASW mix features of \cref{tab:features} to A3 and B3; ablate. (iii) Packing what-if: bin-pack each test day's predicted slices under two placement rules (\emph{segregate}: rec with rec, GenAI with GenAI; \emph{interleave}: first-fit across both) and count GPUs freed.}
+{Mix features are kept if they improve pinball loss in $\ge$7 of 10 LOCO clusters (Wilcoxon $p\le0.05$) without raising $U$, or improve B's PR-AUC by $\ge$0.02. The packing what-if is reported as an upper bound.}
+{Industry schedulers co-locate latency-critical and best-effort work deliberately (\cref{sec:industry}). If mixing raises variance, segregation is a free policy lever; if it does not, operators can interleave and pack tighter.}
+{Addressable with the trace's per-server allocation tables. Caveat: in ASI most pods hold whole GPUs, so ``mixing'' is mostly \emph{host-level} (CPU, PCIe, NIC) rather than SM-level sharing. The result says nothing about true MPS/MIG interference.}
+
+\expcard{E2. Workload--pod--GPU compatibility}{B (A)}
+{(H6) Readiness failure is driven by the interaction (workload type $\times$ GPU type $\times$ requested size), especially requests for scarce GPU types, more than by any main effect. GPU-normalized need makes MVF transfer better across clusters with different hardware mixes.}
+{Build a compatibility matrix of failure rate by cell with empirical-Bayes smoothing; add cell rate, memory-fit ratio and scarcity to B; add throughput-normalized need as an alternative A target.}
+{B: unseen-cluster PR-AUC and ECE vs.\ \cref{tab:modelB}. A: unseen-cluster coverage closer to 95\% than 92.2\%.}
+{Mirrors how commercial schedulers filter by node affinity, GPU product labels and MIG profiles before scoring.}
+{Addressable. Risk: sparse cells; smoothing and a minimum-count rule are mandatory.}
+
+\expcard{E3. Production vs.\ non-production behaviour}{A, B}
+{(H7) Production (high-priority) pods have tighter, more persistent demand, lower failure, and a smaller reclaimable share; low-priority pods fail more when placed on servers with many production pods.}
+{Segment by priority class. Report MVF median/IQR, A1 vs.\ A3 reclaim at $U=5\%$, and B failure rate per segment. Fit per-segment conformal margins. Interaction test for (pod priority $\times$ server production share) in B.}
+{Report per-segment $R$ at matched $U$; the interaction is kept if its permutation importance is in B's top 10 on unseen clusters.}
+{Production requirements differ: a GenAI chat endpoint and a best-effort batch scorer should not carry the same safety budget (feeds E5).}
+{Addressable: priority classes are in the trace. Limitation: priority is a proxy for ``production''; no explicit SLO tier.}
+
+\expcard{E4. Runtime patterns and a second decision point}{A}
+{(H8) For cold-start pods (61--68\% of the population), the first $k\in\{1,6,24\}$ hours of telemetry predict MVF far better than admission-time features, so a \emph{resize-after-warm-up} policy reclaims more than admission-time sizing.}
+{Add runtime-shape features (\cref{tab:features}) computed on $[t_0, t_0+k]$; predict MVF over the remaining lifetime. Compare reclaim at $U=5\%$ for admission-only vs.\ $k$-hour resize, charging the first $k$ hours at the original size.}
+{Net GPU-hours reclaimed vs.\ admission-only A3, by $k$.}
+{This is how vertical autoscalers in industry work (observe, then resize). It directly attacks the cold-start gap where A3 is the only thing that helps.}
+{Addressable from 20-s telemetry. Assumes in-place resize or cheap restart; ASI's actual mechanism is unknown.}
+
+\expcard{E5. Explicit, segment-aware safety constraints}{A+B}
+{(H9) A per-segment risk budget (e.g.\ 1--2\% for GenAI/production, 5--8\% for rec/non-production) reclaims more GPU-hours than a uniform 5\% at equal or lower \emph{expected harm}, where harm weights an under-provisioned production pod higher. GPU memory must be treated as a hard constraint (max/P99) and compute as a soft one (P90).}
+{Define harm $H=\sum_s w_s U_s n_s$ with $w_s$ set by priority. Solve for per-segment margins that maximize $R$ subject to $H \le H_{\text{uniform 5\%}}$. Separate memory and compute quantile targets.}
+{$R$ at matched $H$; also report worst-cluster $U$ to show tail safety.}
+{Translates ``5\% safety constraint'' into an operator-facing knob tied to business priority.}
+{Addressable. Harm weights are an assumption; report a sensitivity sweep.}
+
+\expcard{E6. Hybrid policy}{A}
+{(H10) Using A1 for warm pods and A3 for cold-start pods matches A1 where it is strong and adds A3's 8.1-point gain on rec-no-history.}
+{Route by history availability; same LOCO protocol.}
+{$R$ at $U=5\%$ vs.\ both parents; Wilcoxon over clusters.}
+{Deployable, interpretable, and consistent with the NO-GO finding.}
+{Addressable immediately.}
+
+\expcard{E7. Finer slice sizes (what-if)}{A}
+{Adding sizes between 0.5 and 1.0 GPU (e.g.\ MIG-like sevenths, or 0.6/0.75/0.8/0.9) unlocks GenAI and large-rec reclaim currently blocked by rounding (\cref{fig:quant}).}
+{Re-round A1/A3 predictions to alternative grids; recompute $R$, $U$.}
+{Reclaim by grid; marginal gain per added size.}
+{Quantifies the value of hardware partitioning (MIG profiles) vs.\ better prediction.}
+{Upper bound only: assumes the slice is actually enforceable and isolated.}
+
+\expcard{E8. Per-cluster recalibration}{A, B}
+{Most of B's unseen-cluster calibration error is base-rate shift (35--67\% failure by cluster), so a prior-shift correction from a small labelled sample (first day) restores ECE $\le$0.06; weighted conformal restores A's coverage to $\approx$95\%.}
+{Label-shift adjustment of B's logits using day-1 base rate; covariate-weighted split conformal for A. Robustness check: replicate Zhang and Liao's machine-grouped 5-fold protocol~\cite{zhang2026ineffective} on D2 to show how much of the AUC gap (0.82 vs.\ 0.65--0.75) is due to evaluation protocol.}
+{Unseen-cluster ECE and coverage before/after.}
+{Commercial systems recalibrate per region/cluster continuously; this is the cheapest fix for the transfer gap.}
+{Addressable.}
+
+\expcard{E9. Leakage-free history and peak-aware labels}{A}
+{Rebuilding \texttt{wl\_hist\_*} from pods \emph{finished} before admission removes the 8\% optimistic bias; P99/max memory labels raise required slices modestly but make $U$ meaningful.}
+{SQL rebuild; re-run the full gate on fixed data before any other experiment is trusted.}
+{Change in pinball, $R$, $U$ vs.\ \cref{tab:modelA}.}
+{Every other result depends on this.}
+{Addressable; highest priority.}
+
+\expcard{E10. Stretch: transfer and simulation}{A+B}
+{Findings transfer to a second trace (Tier 2, xMaaS) and survive a scheduler replay (Tier 3) where shrunk pods are actually placed.}
+{Replay the test window in a simple discrete-event simulator with predicted slices; measure placement failures, queueing delay and GPUs freed.}
+{Simulated $R$ vs.\ trace-estimated $R$.}
+{Closes the counterfactual gap that Model B cannot.}
+{Partly addressable; simulator fidelity is the main threat.}
+
+\subsection{Experiment summary}
+
+\begin{table}[h]
+\centering\small
+\caption{Experiments by priority. Gap type refers to \cref{tab:gaps}.}
+\label{tab:expsummary}
+\begin{tabular}{@{}llllc@{}}
+\toprule
+ID & Topic & Model & Gap type & Priority \\
+\midrule
+E9 & Leakage-free history, P99 labels & A & Modelling & 1 \\
+E6 & Hybrid policy & A & Modelling & 1 \\
+E1 & Workload mixing (rec vs.\ GenAI) & A, B & Feature eng. & 2 \\
+E2 & Workload--GPU compatibility & B & Feature eng. & 2 \\
+E3 & Production vs.\ non-production & A, B & Feature eng. & 2 \\
+E4 & Runtime patterns / resize & A & Feature eng. & 2 \\
+E8 & Per-cluster recalibration & A, B & Modelling & 2 \\
+E5 & Segment-aware safety budgets & A+B & Modelling & 3 \\
+E7 & Finer slices (what-if) & A & Inherent (bounded) & 3 \\
+E10 & Transfer + simulator & A+B & Inherent (partly) & stretch \\
+\bottomrule
+\end{tabular}
+\end{table}

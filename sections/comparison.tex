@@ -1,0 +1,34 @@
+\section{Our Setting vs.\ Industry: Why the Results Differ}
+\label{sec:comparison}
+
+\begin{table}[h]
+\centering\small
+\caption{Side-by-side comparison of a production scheduler's vantage point with what the ASI trace exposes to this project.}
+\label{tab:compare}
+\begin{tabularx}{\linewidth}{@{}P{2.6cm}LL@{}}
+\toprule
+Dimension & Production schedulers (Google, AWS, Azure, Meta, Alibaba internal) & This project (ASI public trace) \\
+\midrule
+Available features & Live per-request latency, queue depth, model identity, kernel profiles, traffic forecasts, load-test results & Requests, priority, GPU type, model type (anonymized), 20-s utilization telemetry, server/switch topology. \textbf{No request latency.} \\
+Workload granularity & Per request / token (Aegaeon, Dynamo), per kernel (Orion, REEF), per container & Per pod, labelled by hourly-P90 busy-hour demand \\
+Allocation granularity & MIG profiles, MPS percentages, time-slices, live resize & 27 slice sizes as observed; 0.5\ra0.7\ra1.0 jumps; fractional pods only 0.3--3.7\% per cluster \\
+Compute scale & 10$^4$--10$^5$+ GPUs, continuous & Up to 155{,}410 GPUs, but a 294k-pod (A) / 2.8M-pod (B) modelling slice; 10 LOCO clusters \\
+Scheduler constraints & Isolation, gang scheduling, topology, GPU-model pinning, preemption policy & Same constraints are \emph{in} the data but not controllable; $>$99\% of jobs pin a GPU model \\
+Production requirements & Hard SLOs, A/B rollout, fault isolation, rollback & Safety proxy $U \le 5\%$; readiness failure as placement risk \\
+Actuation & Scheduler can act and observe the consequence & Observational only: no counterfactual sizes \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Why our numbers differ, and why that is informative}
+
+\begin{enumerate}
+  \item \textbf{We measure opportunity; industry reports realized savings.} Autopilot's 46--60\%\ra23\% slack reduction and SpotGPU's 68\%\ra93\% allocation are outcomes of systems that can act. Our 21--25\% is an \emph{upper bound on reclaimable reservation} at a stated risk, before packing and actuation losses. The two answer different questions and should not be ranked against each other.
+  \item \textbf{Different lever, same headroom.} SpotGPU harvests reserved-but-idle capacity \emph{after} reservation by lending it to preemptible jobs; our Model A shrinks the reservation \emph{at admission}. They target the same idle headroom from opposite ends, so our number partly overlaps SpotGPU's gain. This positions right-sizing as complementary (it reduces how much must be harvested and evicted) rather than as a competitor.
+  \item \textbf{The slice grid, not the predictor, is the binding constraint.} Industry gets finer control (MIG sevenths, MPS percentages, token-level switching). In ASI, sharing is rare because isolation is weak, so the trace contains almost no fractional allocations to learn from. This explains both the GenAI zero and Model B's extrapolation in \cref{tab:compose}.
+  \item \textbf{GenAI is memory-bound, not compute-bound.} ASI reports GenAI online inference at 94\% GPU memory but 5\% SM. Our median GenAI MVF of 0.983 is consistent with a \emph{memory-dominated} label. A GenAI pod cannot be shrunk by memory, but its idle SMs are exactly what a compute-light recommendation pod could use. This turns the GenAI ``zero'' into the motivation for the workload-mixing experiment (E1) rather than a dead end. \emph{To verify: which resource term dominates our MVF label per segment.}
+  \item \textbf{Simple rules win when demand is persistent.} Autopilot's production recommender is itself a decayed percentile with a margin, essentially our A1. Our NO-GO result matches industry practice: learned models add most where history is missing.
+  \item \textbf{Generalization is tested harder here.} Industry models are retrained per cluster continuously; we test on clusters never seen in training. The calibration drop for Model B (ECE 0.05\ra0.12) is the price of that stricter test, and it quantifies how much per-cluster recalibration (E8) is worth.
+\end{enumerate}
+
+\input{sections/gaps}

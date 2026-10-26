@@ -1,0 +1,28 @@
+\subsection{Which gaps are addressable, and which are inherent?}
+
+\begin{table}[h]
+\centering\small
+\caption{Gap taxonomy. \emph{Modelling} and \emph{feature engineering} gaps can be closed within this project; \emph{inherent} gaps are properties of a public, anonymized, observational trace and are reported, not fixed.}
+\label{tab:gaps}
+\begin{tabularx}{\linewidth}{@{}P{3.2cm}P{1.9cm}LP{1.0cm}@{}}
+\toprule
+Gap vs.\ industry & Type & What we can do & Exp. \\
+\midrule
+Leaky history features & Modelling & Strict finished-before-admission rebuild. & E9 \\
+Hourly-P90 labels miss peaks & Modelling & P99/max labels from 20-s telemetry; separate memory (hard) and compute (soft). & E9, E5 \\
+Calibration does not transfer & Modelling & Prior-shift recalibration; weighted conformal. & E8 \\
+Uniform 5\% safety budget & Modelling & Segment- and priority-aware budgets. & E5 \\
+Cold-start pods (61--68\%) & Feature eng. & Early-runtime features; resize after warm-up; hybrid routing. & E4, E6 \\
+No co-location / interference signal & Feature eng. & Server/ASW workload-mix features; segregate vs.\ interleave what-if. & E1 \\
+Hardware heterogeneity & Feature eng. & Compatibility cells; throughput-normalized need. & E2 \\
+Production tiers & Feature eng. & Priority-class segmentation and interactions. & E3 \\
+\midrule
+Coarse 27-size slice grid & Inherent (boundable) & What-if re-rounding gives an upper bound only. & E7 \\
+No request latency / SLO field & Inherent & Use $U$ as proxy; state clearly that SLA neutrality is not shown. & -- \\
+No counterfactual placements & Inherent (partly) & Simulator replay; flag A+B results as what-if. & E10 \\
+No actuation (cannot resize live) & Inherent & Estimate opportunity, not realized savings. & -- \\
+Anonymized model identities & Inherent & Use model-type and workload IDs only. & -- \\
+One operator, six months & Inherent & LOCO across 10 clusters; Tier-2 transfer if time permits. & E10 \\
+\bottomrule
+\end{tabularx}
+\end{table}

@@ -1,0 +1,10 @@
+*.aux
+*.log
+*.bbl
+*.blg
+*.out
+*.toc
+*.synctex.gz
+__pycache__/
+.venv/
+.DS_Store
