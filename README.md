@@ -34,6 +34,10 @@ The follow-up experiments cover workload mixing, workload–GPU compatibility, p
 |---|---|
 | `main.tex`, `sections/*.tex` | Proposal source |
 | `refs.bib` | Bibliography |
+| `code/ISAN3392_ModelA_RightSizing.ipynb` | Model A (right-sizing) notebook: A1/A2/A3, LOCO, conformal margins, gate |
+| `code/ISAN3392_ModelB_Readiness.ipynb` | Model B (readiness/failure) notebook: B1/B2/B3, calibration, A+B composition |
+| `code/isan3392_loader.py` | Memory-safe Parquet loader and feature/split helpers |
+| `code/ISAN3392_data_dictionary.md` | Column dictionary for the D1/D2 datasets |
 | `scripts/make_figures.py` | Regenerates every figure from the reported numbers |
 | `figures/` | Generated figure PDFs |
 | `main.pdf` | Compiled proposal |
