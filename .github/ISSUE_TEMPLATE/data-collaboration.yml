@@ -1,0 +1,36 @@
+name: Data or collaboration offer
+description: Offer data, compute, a simulator, or advising for the GPU right-sizing work
+title: "[Collab] "
+labels: ["collaboration"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for offering to help. Prefer email? Write to pqo14@txstate.edu.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What are you offering?
+      multiple: true
+      options:
+        - GPU-cluster telemetry or traces
+        - Latency / SLO labels for inference workloads
+        - Controlled resize experiments or a scheduler simulator
+        - Advising or methodological review
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: data
+    attributes:
+      label: About the data or resource
+      description: Scale (GPUs, servers, duration), workload types, whether it includes request latency or SLOs, and per-pod GPU utilization.
+  - type: input
+    id: access
+    attributes:
+      label: Access terms
+      description: Public, under NDA, on-site only, aggregate-only, etc.
+  - type: input
+    id: contact
+    attributes:
+      label: Best way to reach you

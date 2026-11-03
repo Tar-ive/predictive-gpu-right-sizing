@@ -49,7 +49,7 @@
 
 \title{\textbf{Predictive GPU Right-Sizing for Production Online Inference}\\[4pt]
 \large A Research Proposal Grounded in the Alibaba Serverless Infrastructure GPU Trace}
-\author{Saksham Adhikari \and Sudip Bhandari\\[4pt]
+\author{Saksham Adhikari\thanks{Corresponding author: \href{mailto:pqo14@txstate.edu}{\texttt{pqo14@txstate.edu}}} \and Sudip Bhandari\\[4pt]
 \normalsize Advisor: Dr.\ Fred Zhao\\[2pt]
 \normalsize ISAN 3392 \textbullet{} Texas State University}
 \date{Fall 2026 \textbullet{} Working draft, \today}
@@ -60,6 +60,19 @@
 \begin{abstract}
 \noindent Production GPU fleets serving online inference are routinely over-reserved: operators trade utilization for latency headroom because an under-provisioned inference pod hurts users directly. We ask how much of that reserved capacity can be recovered by predicting, at admission, the smallest safe GPU slice a pod needs (\emph{Model A, allocation}), and what placement risk the recovery carries (\emph{Model B, readiness/failure}). Using the six-month Alibaba Serverless Infrastructure (ASI) trace released with OSDI~'26 (up to 155{,}410 GPUs on 37{,}707 servers), we built two datasets (294{,}465 pods for right-sizing; 2{,}826{,}036 pods for placement) and evaluated history-rule, linear, and gradient-boosted models under a pre-registered go/no-go gate on ten held-out clusters. At a fixed 5\% under-provisioning budget, roughly \textbf{21--25\% of reserved online-inference GPU-hours} are reclaimable on clusters never seen in training, almost entirely from recommendation pods with workload history; GenAI pods have a median minimum viable fraction of 0.983 of a GPU, consistent with ASI's report that GenAI inference fills GPU memory while leaving compute mostly idle. A simple workload-history rule captures nearly all of it (20.8\% vs.\ 21.9\% for XGBoost), so the learned model returned \textsc{no-go} on its accuracy gate. Model B predicts failure to become ready with ROC-AUC 0.75 in known clusters but 0.65 and poorly calibrated on unseen clusters. A follow-up round found that a hybrid policy (history rule for warm pods, learned model for cold-start pods) reclaims 22.6\% vs.\ 20.7\% at matched risk ($p = 0.014$) while keeping the rule's tail safety, and that finer slice sizes would add about 5 points; per-cluster recalibration and new placement features did not close the transfer gap. This document preserves the full research trail (hypotheses, experiments, failures, and comparisons), positions the results against commercial GPU schedulers at Google, AWS, Microsoft, NVIDIA, Meta, and Alibaba itself, quantifies business value, and proposes the next round of experiments: workload-mixing signals (recommendation vs.\ GenAI co-location), workload--GPU compatibility, production vs.\ non-production behaviour, runtime patterns, and explicit safety constraints.
 \end{abstract}
+
+\begin{keybox}[Open call: collaborators, advisors and new data]
+\small
+This is a working preprint and we want it to be challenged. We would especially like to hear from:
+\begin{itemize}[leftmargin=1.2em,itemsep=1pt,topsep=2pt]
+  \item \textbf{Advisors and reviewers} in ML for systems or cluster scheduling who can critique the method and the evaluation protocol.
+  \item \textbf{Teams with GPU-cluster telemetry that includes request latency or SLOs.} The ASI trace has none, so our under-provisioning rate $U$ is only a proxy for user-facing harm (\cref{sec:limitations}).
+  \item \textbf{Anyone who can run controlled resize experiments or has a scheduler simulator.} The trace can validate under 2\% of GPU-hours for the joint A+B policy (\cref{sec:followup}); closing that gap needs counterfactual data (E10).
+  \item \textbf{Operators of other fleets} (other clouds, on-premises, university HPC) to test whether the results transfer beyond Alibaba.
+\end{itemize}
+Partners get our data pipeline and pre-registered evaluation code to run on their own data, and co-authorship on joint work.
+\textbf{Contact:} \href{mailto:pqo14@txstate.edu}{\texttt{pqo14@txstate.edu}}\newline Issues and discussion: \url{https://github.com/Tar-ive/predictive-gpu-right-sizing}
+\end{keybox}
 
 \begin{keybox}[Reading guide]
 \small
@@ -476,6 +489,8 @@ Phases 0--5 of the original plan (data, datasets, baselines, Model A, Model B, c
 The headline is a useful negative result wrapped around a positive one. \emph{Positive:} at a 5\% under-provisioning budget, roughly a fifth to a quarter of reserved online-inference GPU-hours are reclaimable on clusters never seen in training, concentrated in recommendation pods with history. \emph{Negative:} a learned model does not beat a per-workload history rule on accuracy; most of the value is reachable with a rule an operator could deploy this week, and ML's marginal value is confined to cold-start pods. The follow-up round makes this concrete: routing warm pods to the rule and cold-start pods to the learned model is the best policy found (22.6\% at matched risk, worst-cluster $U$ 2.5\%). \emph{Open:} the placement-risk side, because the trace barely contains the fractional allocations a right-sizing policy would create.
 
 Compared to commercial schedulers, this gap is expected rather than embarrassing: production systems own the actuation path (MIG, MPS, time-slicing, live resize), observe latency, and can run controlled experiments, while a trace-based study can only estimate the \emph{opportunity}. The next round of work targets the gaps that modelling can close (leakage, labels, workload-mixing and runtime features, per-cluster calibration, segment-specific safety budgets) and documents honestly the ones it cannot.
+
+\paragraph{Open invitation.} The gaps that modelling cannot close are data gaps: latency or SLO labels, controlled resize outcomes, and fleets other than Alibaba's. We are actively looking for advisors, reviewers and data partners to close them. A partner would receive the full pipeline (loader, feature builders, leave-one-cluster-out harness and the pre-registered go/no-go gate) so results on new data are directly comparable to the ones reported here. Contact \href{mailto:pqo14@txstate.edu}{\texttt{pqo14@txstate.edu}} or open an issue or discussion at \url{https://github.com/Tar-ive/predictive-gpu-right-sizing}.
 
 \bibliographystyle{plainnat}
 \bibliography{refs}

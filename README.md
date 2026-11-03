@@ -8,8 +8,21 @@ A research proposal built on the Alibaba Serverless Infrastructure (ASI) GPU tra
 
 ## Preprint
 
-- **PDF (v1, Nov 2026):** [GitHub release `preprint-v1`](https://github.com/Tar-ive/predictive-gpu-right-sizing/releases/tag/preprint-v1) · [Google Drive](https://drive.google.com/file/d/174ukA7JwGUImqec95lizQ4ObaArbujNE/view)
+- **PDF (v1.1, Nov 2026):** [GitHub release `preprint-v1.1`](https://github.com/Tar-ive/predictive-gpu-right-sizing/releases/tag/preprint-v1.1) · [Google Drive](https://drive.google.com/file/d/174ukA7JwGUImqec95lizQ4ObaArbujNE/view)
 - **Cite as:** Adhikari, S., & Bhandari, S. (2026). *Predictive GPU Right-Sizing for Production Online Inference* [Preprint]. Texas State University.
+
+## Get involved
+
+We're looking for advisors, reviewers, and data partners. We'd especially like to hear from:
+
+- **Researchers in ML for systems or cluster scheduling** who can critique the method and evaluation.
+- **Teams with GPU-cluster telemetry that includes request latency or SLOs.** The ASI trace has none, so our under-provisioning rate is only a proxy for user-facing harm.
+- **Anyone who can run controlled resize experiments or has a scheduler simulator.** The trace can validate under 2% of GPU-hours for the joint allocation + readiness policy.
+- **Operators of other fleets** (other clouds, on-premises, university HPC) to test whether the results transfer beyond Alibaba.
+
+Partners get the full pipeline (loader, features, leave-one-cluster-out harness, pre-registered go/no-go gate) to run on their own data, and co-authorship on joint work.
+
+**How to reach us:** email **pqo14@txstate.edu**, start a thread in [Discussions](https://github.com/Tar-ive/predictive-gpu-right-sizing/discussions), or open a [data or collaboration offer](https://github.com/Tar-ive/predictive-gpu-right-sizing/issues/new?template=data-collaboration.yml).
 
 ## Summary
 
