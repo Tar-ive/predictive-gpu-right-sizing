@@ -181,22 +181,27 @@ Dataset & Used for & Rows (pods) & Target \\
 \begin{figure}[h]
 \centering
 \begin{tikzpicture}[
-  node distance=6mm and 9mm,
-  box/.style={draw=accent,rounded corners=2pt,fill=soft,align=center,font=\small,minimum height=9mm,text width=2.5cm},
-  dec/.style={draw=warn,rounded corners=2pt,fill=warn!8,align=center,font=\small,minimum height=9mm,text width=2.5cm},
+  box/.style={draw=accent,rounded corners=2pt,fill=soft,align=center,font=\footnotesize,inner sep=3pt,minimum height=13mm,
+               text width=#1,execute at begin node={\hyphenpenalty=10000\exhyphenpenalty=10000}},
+  box/.default=2.5cm,
+  dec/.style={box=#1,draw=warn,fill=warn!8},
+  dec/.default=2.6cm,
   arr/.style={-{Latex[length=2mm]},thick,draw=black!60}]
-\node[box] (pod) {Pod arrives\\(request, model type,\\GPU type, priority)};
-\node[box,right=of pod] (feat) {Features\\history, cluster load,\\server occupancy};
-\node[box,right=of feat,yshift=8mm] (A) {\textbf{Model A}\\P90 quantile of MVF\\+ conformal margin};
-\node[box,right=of feat,yshift=-8mm] (B) {\textbf{Model B}\\P(fail to ready)\\calibrated};
-\node[dec,right=of A,yshift=-8mm] (pol) {Policy\\shrink to slice $s$\\if $\Delta$risk $\le$ cap};
-\node[box,below=8mm of pol] (out) {Allocated slice\\(27-size grid)};
+% Columns at fixed x so nothing depends on text width; Model A / B are stacked with a clear gap.
+% Run scripts/check_pdf.py after editing: it fails if any labels overlap.
+\newcommand{\hd}[1]{{\small\bfseries #1}\\[1pt]}
+\node[box=2.3cm]  (pod)  at (0,0)       {\hd{Pod arrives}request size,\\model type,\\GPU type, priority};
+\node[box=2.6cm]  (feat) at (3.15,0)    {\hd{Features}workload history,\\cluster load,\\server occupancy};
+\node[box=3.2cm]  (A)    at (6.85,1.3)  {\hd{Model A}P90 quantile of MVF\\+ conformal margin};
+\node[box=3.2cm]  (B)    at (6.85,-1.3) {\hd{Model B}P(fail to ready),\\calibrated};
+\node[dec]        (pol)  at (10.45,0)   {\hd{Policy}shrink to slice $s$\\if $\Delta$risk $\le$ cap};
+\node[box=2.3cm]  (out)  at (13.55,0)   {\hd{Allocated slice}27-size grid};
 \draw[arr] (pod) -- (feat);
-\draw[arr] (feat) -- (A);
-\draw[arr] (feat) -- (B);
-\draw[arr] (A) -- (pol);
-\draw[arr] (B) -- (pol);
-\draw[arr] (A.south) to[bend left=10] node[font=\scriptsize,left,align=center]{re-score at\\shrunk size} (B.north);
+\draw[arr] (feat.east) -- (A.west);
+\draw[arr] (feat.east) -- (B.west);
+\draw[arr] (A.east) -- (pol.west);
+\draw[arr] (B.east) -- (pol.west);
+\draw[arr] (A.south) -- node[right,font=\scriptsize,align=left,xshift=1pt]{re-score at\\shrunk size} (B.north);
 \draw[arr] (pol) -- (out);
 \end{tikzpicture}
 \caption{Two-model framing. Model A proposes a smaller slice; Model B re-scores placement risk at that size; the policy accepts the shrink only if the predicted increase in failure risk is under a cap.}
@@ -442,7 +447,7 @@ Validated A+B reclaim & Restricted to slice sizes seen in training, reclaim is 1
   \item \textbf{Reclaiming needs a mechanism.} The operator reports GPU sharing is rarely used because isolation is weak, and its own SpotGPU mechanism already raises allocation from 68\% to 93\%. How reclaimed slices would be consumed is open.
   \item \textbf{No host topology.} The trace has no per-server NUMA layout, PCIe-switch placement or PCIe-traffic counters. Like most production schedulers (\cref{sec:hosttopo}), we cannot model PCIe bandwidth or NUMA alignment as resources, so host-side contention is folded into the noise of $Y_{\text{MVF}}$ and $Y_{\text{READY}}$.
   \item \textbf{Counterfactual blindness.} The trace records what was allocated, not what would have happened at a smaller size; Model B extrapolates.
-  \item \textbf{External validity.} One operator, one six-month window, 10 usable held-out clusters; anonymized model identities.
+  \item \textbf{External validity.} One operator, one six-month window and 10 usable held-out clusters. Model identities are anonymized.
 \end{itemize}
 
 % ===========================================================================

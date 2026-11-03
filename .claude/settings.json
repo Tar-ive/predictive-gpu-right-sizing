@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/pdf_eval_hook.sh",
+            "timeout": 180,
+            "statusMessage": "Running PDF layout evals..."
+          }
+        ]
+      }
+    ]
+  }
+}
