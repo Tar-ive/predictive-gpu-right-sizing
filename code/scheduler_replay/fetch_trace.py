@@ -4,7 +4,7 @@ usage: python fetch_trace.py <out_dir> <first_day> <last_day>
 
 Each hourly parquet is stored uncompressed inside the ZIP, so one hour (~79 MB) is pulled in 16 parallel
 5 MB ranges (~4 s at ~40 MB/s), filtered to job_type_public='online_inference' and gpu_request > 0, and saved.
-No cloud account is needed. 22 days (days 90-111) take ~35 min and ~1.4 GB on disk.
+No cloud account is needed. 22 days (days 90-111) take ~35 min and ~2.3 GB on disk.
 """
 import rzip, pyarrow.parquet as pq, pyarrow.compute as pc, pyarrow as pa, io, os, sys, time, concurrent.futures as cf
 OUT=sys.argv[1]; d0,d1=int(sys.argv[2]),int(sys.argv[3]); os.makedirs(OUT,exist_ok=True)

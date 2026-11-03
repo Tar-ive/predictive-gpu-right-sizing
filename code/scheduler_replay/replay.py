@@ -145,6 +145,8 @@ S = {"request": np.ones(len(te)),
      "koord_70": slice_fraction(np.full(len(te), 0.70), REQ),
      "vpa": np.where(te.vpa_p90.notna(), slice_fraction(np.minimum(1, te.vpa_p90.fillna(1).values * 1.15), REQ), 1.0)}
 for k in raw: S[k] = slice_fraction(up_te[k], REQ)
+# VPA where it has samples, Model A (A3 + conformal) in VPA's cold-start gap
+S["vpa+A3cold"] = np.where(te.vpa_p90.notna(), S["vpa"], S["A3"])
 
 # ---------------- pod-level metrics ----------------
 pos_all = np.full(len(P), -1); pos_all[te.index.values] = np.arange(len(te))
@@ -168,6 +170,7 @@ def r_at_u(p, u=0.05):
     return best
 MATCH = {k: r_at_u(pred_te[k]) for k in raw}
 MATCH["vpa_tuned"] = r_at_u(np.where(te.vpa_p90.notna(), te.vpa_p90.values, 10.0))   # cold pods stay at the request
+MATCH["vpa+A3cold"] = r_at_u(np.where(te.vpa_p90.notna(), te.vpa_p90.values, pred_te["A3"]))
 MATCH["koord_flat"] = r_at_u(np.zeros(len(te)))                                       # one flat factor for every pod
 
 # ---------------- packing replay (KAI gpupack / HAMi binpack: most-used GPU that fits) ----------------
