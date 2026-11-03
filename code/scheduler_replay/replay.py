@@ -35,11 +35,15 @@ NH = pd.read_parquet(f"{SRC}/need_hourly.parquet")
 CH = pd.read_parquet(f"{SRC}/cluster_hour.parquet")
 LADDER = np.sort(np.unique(np.round(P.gpu_request.values, 4)))
 P["adm_day"] = P.t_adm // 24
-P["wl"] = P.workload_id.fillna("")
+for c in ("pod_id", "workload_id"): P[c] = P[c].astype(object)
+P["wl"] = P.workload_id.fillna("").astype(str)
 P["has_wl"] = (P.wl != "").astype(int)
 
 # ---------------- workload history (finished-before-admission rule, as in E9 clean) ----------------
 P = P.sort_values("t_adm").reset_index(drop=True)
+NH = NH[(NH.t >= (TEST[0] - 8) * 24) & NH.need.notna()]
+NH = pd.DataFrame({"pi": pd.Index(P.pod_id.astype(str)).get_indexer(NH.pod_id.cat.categories.astype(str))[NH.pod_id.cat.codes.values],
+                   "t": NH.t.values, "need": NH.need.values})
 hist = {k: np.full(len(P), np.nan) for k in ("wl_n", "wl_p90", "wl_max", "wl_mean")}
 for wl, g in P[P.wl != ""].groupby("wl"):
     done = g[~g.right_censored].sort_values("t_end"); te, ys = done.t_end.values, done.y.values
@@ -65,7 +69,7 @@ def vpa_percentile(bk, ts, now, q):
     if tot < EPS: return np.nan
     b = int(np.searchsorted(np.cumsum(hb), q * tot - 1e-12, "left"))
     return bucket_start(b + 1) if b < NB - 1 else bucket_start(b)   # VPA returns the bucket's upper end
-nh = NH.merge(P[["pod_id", "wl"]], on="pod_id"); nh = nh[(nh.wl != "") & nh.need.notna()].sort_values("t", kind="stable")
+nh = NH.assign(wl=P.wl.values[NH.pi.values]); nh = nh[nh.wl != ""].sort_values("t", kind="stable")
 wl_samples = {k: (g.t.values, buckets(g.need.values)) for k, g in nh.groupby("wl")}
 vpa = np.full(len(P), np.nan)
 need_vpa = (P.t_adm // 24 >= TEST[0]).values                     # only the test cohort is sized by VPA
@@ -143,9 +147,9 @@ S = {"request": np.ones(len(te)),
 for k in raw: S[k] = slice_fraction(up_te[k], REQ)
 
 # ---------------- pod-level metrics ----------------
-nh_te = NH[NH.pod_id.isin(te.pod_id)].merge(te[["pod_id"]].reset_index().rename(columns={"index": "row"}), on="pod_id")
+pos_all = np.full(len(P), -1); pos_all[te.index.values] = np.arange(len(te))
+nh_te = NH.assign(i=pos_all[NH.pi.values]); nh_te = nh_te[nh_te.i >= 0]
 pos = pd.Series(np.arange(len(te)), index=te.index)
-nh_te["i"] = pos.loc[nh_te.row].values
 def metrics(s):
     hn = nh_te.dropna(subset=["need"]); over = hn.need.values > s[hn.i.values] + 1e-9
     res = te.res_h.values
