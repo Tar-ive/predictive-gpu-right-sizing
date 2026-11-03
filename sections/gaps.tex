@@ -19,6 +19,7 @@ Production tiers & Feature eng. & Priority-class segmentation and interactions. 
 \midrule
 Coarse 27-size slice grid & Inherent (boundable) & What-if re-rounding gives an upper bound only. & E7 \\
 No request latency / SLO field & Inherent & Use $U$ as proxy; state clearly that SLA neutrality is not shown. & -- \\
+No host-topology fields (PCIe, NUMA) & Inherent & Use server/ASW co-location as a proxy; attribute nothing to PCIe/NUMA specifically (\cref{sec:hosttopo}). & E1 \\
 No counterfactual placements & Inherent (partly) & Simulator replay; flag A+B results as what-if. & E10 \\
 No actuation (cannot resize live) & Inherent & Estimate opportunity, not realized savings. & -- \\
 Anonymized model identities & Inherent & Use model-type and workload IDs only. & -- \\

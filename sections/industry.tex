@@ -34,6 +34,28 @@ Meta's ads/DLRM inference fleet has a long tail of low-utilization models caused
 \subsection{Colocation and interference research}
 Gavel~\cite{narayanan2020gavel} uses per-job, per-accelerator throughput matrices; REEF~\cite{han2022reef} offers microsecond preemption so real-time inference can share with best-effort work; Orion~\cite{strati2024orion} schedules at operator level using each kernel's compute- vs.\ memory-bound profile; Usher~\cite{shubha2024usher} estimates model resource needs from kernels and places to avoid interference; MuxServe~\cite{duan2024muxserve} co-locates LLMs by popularity, separating prefill and decode; iGniter~\cite{xu2022igniter} models inference latency under colocation. The signals that predict interference are consistent across these papers: compute vs.\ memory-bandwidth intensity, memory/KV-cache footprint, request burstiness, host-CPU contention, and model popularity.
 
+\subsection{Host topology: PCIe and NUMA}
+\label{sec:hosttopo}
+A GPU pod also consumes host resources that sit between the CPU and the GPU: PCIe bandwidth to host memory and NICs, and the NUMA node its CPUs, memory and devices hang off. A common claim is that schedulers do not model these as first-class resources. The evidence supports this for the \emph{default} schedulers, with two qualifications.
+
+\begin{itemize}
+  \item \textbf{Default schedulers treat NUMA as a node-local check.} In Kubernetes, NUMA alignment is done by the kubelet's Topology Manager (stable since v1.27), not by the scheduler. The documentation lists as a known limitation that ``the scheduler is not topology-aware, so it is possible to be scheduled on a node and then fail on the node due to the Topology Manager''~\cite{k8s2026topomgr}. In Slurm, GPU--core affinity is declared in \texttt{gres.conf} and is only a preference unless the job sets \texttt{--gres-flags=enforce-binding}. Co-allocation works at socket/NUMA granularity~\cite{slurm2026gres}.
+  \item \textbf{NUMA and PCIe \emph{placement} are becoming first-class, through add-ons.} Examples:
+  \begin{itemize}
+    \item The out-of-tree NodeResourceTopology plugins score nodes by per-NUMA free capacity~\cite{k8s2026nrt}.
+    \item Alibaba's Koordinator (v1.6) jointly allocates GPUs and RDMA NICs with a required topology scope of the same PCIe switch or NUMA node~\cite{koordinator2025v16}.
+    \item Kubernetes Dynamic Resource Allocation lets a claim require a GPU and a NIC under the same \texttt{pcieRoot}. KEP-6072 standardizes a \texttt{numaNode} device attribute for v1.37 because \texttt{pcieRoot} matching covers few GPUs on many servers (e.g.\ 1 of 4 on a Dell XE8640)~\cite{k8s2026kep6072}.
+  \end{itemize}
+  Research placed DL jobs by PCIe/NVLink topology as early as 2017, reporting up to $\approx$1.30$\times$ speedups~\cite{amaral2017topology}.
+  \item \textbf{PCIe \emph{bandwidth} as a consumable quantity remains essentially unmodelled.} The mechanisms above constrain \emph{where} devices sit, not \emph{how much} of a link a pod may use. Two research systems show what that misses:
+  \begin{itemize}
+    \item hostCC finds that host-interconnect contention causes $>$50\% network-throughput degradation and $>$1\% packet drops~\cite{agarwal2023hostcc}.
+    \item GUST treats PCIe as ``a first-class, schedulable resource''. When colocating analytics and inference on one GPU, it cuts slowdown versus a dedicated GPU from 3.9--7$\times$ to 2.8$\times$~\cite{jiang2026gust}.
+  \end{itemize}
+\end{itemize}
+
+\noindent\textbf{Relevance here.} The ASI paper reports idle GPUs stranded because they ``lack matching CPUs, or violate network locality''~\cite{li2026asi}, and that colocating CPU jobs lowers training SM utilization by 10--18\%. Both are symptoms of host-topology constraints. Our trace exposes access-switch (ASW) topology but no per-server NUMA, PCIe-switch or PCIe-traffic fields. Any host-level interference in E1 can therefore only be inferred from co-location counts, not attributed to PCIe or NUMA. This is listed as an inherent gap in \cref{tab:gaps}.
+
 \subsection{Prediction of needs and failures}
 Beyond Autopilot and Resource Central, MagicScaler~\cite{pan2023magicscaler} uses uncertainty-aware forecasts with stochastic QoS constraints, and Helios~\cite{hu2021helios} uses history-based duration prediction for scheduling. Conformal prediction~\cite{angelopoulos2021gentle} and conformalized quantile regression~\cite{romano2019cqr} provide distribution-free coverage; we found no peer-reviewed application to GPU slice sizing, which is a gap this project fills. \textbf{Closest prior work to Model B:} Zhang and Liao~\cite{zhang2026ineffective} (arXiv, 18 Oct 2026) study ``ineffective occupancy'' on an Alibaba GPU trace: 52.70\% of execution records never became ready; a gradient-boosted classifier on admission attributes reaches ROC-AUC 0.8187 under machine-grouped 5-fold CV; and readiness-aware scheduling cuts ineffective occupancy from 43.64\% to 27.15\%. The trace version is not stated on the abstract page.
 

@@ -1,7 +1,7 @@
 \section{Proposed Experiments and Feature Engineering}
 \label{sec:experiments}
 
-Every experiment below is \status{proposed}: designed, with a hypothesis and a decision rule fixed in advance, but not yet run. All keep the same splits, LOCO protocol, conformal margins and metrics as \cref{sec:method}, so results remain comparable to \cref{tab:modelA,tab:modelB}. Each is tagged by the model it informs: \textbf{A} (allocation), \textbf{B} (readiness/failure), or \textbf{A+B} (policy).
+Every experiment below was designed with a hypothesis and a decision rule fixed in advance. E6, E7 and E8 have since been run (results in \cref{sec:followup}); the rest are \status{proposed} and not yet run. All keep the same splits, LOCO protocol, conformal margins and metrics as \cref{sec:method}, so results remain comparable to \cref{tab:modelA,tab:modelB}. Each is tagged by the model it informs: \textbf{A} (allocation), \textbf{B} (readiness/failure), or \textbf{A+B} (policy).
 
 \subsection{New feature families}
 
@@ -42,7 +42,7 @@ Memory headroom & Max / P99 of GPU-memory use (vs.\ P90 of utilization) to separ
 {(i) Stratify D1 rec pods into \emph{rec-homogeneous} ($\ge$80\% of the server's allocated GPUs are rec), \emph{GenAI-mixed} ($\ge$20\% GenAI), and \emph{other-mixed}. Compare MVF distributions, within-workload variance, and A1 pinball loss by stratum. (ii) Add the server/ASW mix features of \cref{tab:features} to A3 and B3; ablate. (iii) Packing what-if: bin-pack each test day's predicted slices under two placement rules (\emph{segregate}: rec with rec, GenAI with GenAI; \emph{interleave}: first-fit across both) and count GPUs freed.}
 {Mix features are kept if they improve pinball loss in $\ge$7 of 10 LOCO clusters (Wilcoxon $p\le0.05$) without raising $U$, or improve B's PR-AUC by $\ge$0.02. The packing what-if is reported as an upper bound.}
 {Industry schedulers co-locate latency-critical and best-effort work deliberately (\cref{sec:industry}). If mixing raises variance, segregation is a free policy lever; if it does not, operators can interleave and pack tighter.}
-{Addressable with the trace's per-server allocation tables. Caveat: in ASI most pods hold whole GPUs, so ``mixing'' is mostly \emph{host-level} (CPU, PCIe, NIC) rather than SM-level sharing. The result says nothing about true MPS/MIG interference.}
+{Addressable with the trace's per-server allocation tables. Caveat: in ASI most pods hold whole GPUs, so ``mixing'' is mostly \emph{host-level} (CPU, PCIe, NIC) rather than SM-level sharing. The trace has no PCIe or NUMA fields, so host-level effects cannot be attributed to either (\cref{sec:hosttopo}). The result says nothing about true MPS/MIG interference.}
 
 \expcard{E2. Workload--pod--GPU compatibility}{B (A)}
 {(H6) Readiness failure is driven by the interaction (workload type $\times$ GPU type $\times$ requested size), especially requests for scarce GPU types, more than by any main effect. GPU-normalized need makes MVF transfer better across clusters with different hardware mixes.}
@@ -72,21 +72,21 @@ Memory headroom & Max / P99 of GPU-memory use (vs.\ P90 of utilization) to separ
 {Translates ``5\% safety constraint'' into an operator-facing knob tied to business priority.}
 {Addressable. Harm weights are an assumption; report a sensitivity sweep.}
 
-\expcard{E6. Hybrid policy}{A}
+\expcard{E6. Hybrid policy (\status{done}, \cref{sec:followup})}{A}
 {(H10) Using A1 for warm pods and A3 for cold-start pods matches A1 where it is strong and adds A3's 8.1-point gain on rec-no-history.}
 {Route by history availability; same LOCO protocol.}
 {$R$ at $U=5\%$ vs.\ both parents; Wilcoxon over clusters.}
 {Deployable, interpretable, and consistent with the NO-GO finding.}
 {Addressable immediately.}
 
-\expcard{E7. Finer slice sizes (what-if)}{A}
+\expcard{E7. Finer slice sizes (what-if; \status{done}, \cref{sec:followup})}{A}
 {Adding sizes between 0.5 and 1.0 GPU (e.g.\ MIG-like sevenths, or 0.6/0.75/0.8/0.9) unlocks GenAI and large-rec reclaim currently blocked by rounding (\cref{fig:quant}).}
 {Re-round A1/A3 predictions to alternative grids; recompute $R$, $U$.}
 {Reclaim by grid; marginal gain per added size.}
 {Quantifies the value of hardware partitioning (MIG profiles) vs.\ better prediction.}
 {Upper bound only: assumes the slice is actually enforceable and isolated.}
 
-\expcard{E8. Per-cluster recalibration}{A, B}
+\expcard{E8. Per-cluster recalibration (\status{done}, \cref{sec:followup})}{A, B}
 {Most of B's unseen-cluster calibration error is base-rate shift (35--67\% failure by cluster), so a prior-shift correction from a small labelled sample (first day) restores ECE $\le$0.06; weighted conformal restores A's coverage to $\approx$95\%.}
 {Label-shift adjustment of B's logits using day-1 base rate; covariate-weighted split conformal for A. Robustness check: replicate Zhang and Liao's machine-grouped 5-fold protocol~\cite{zhang2026ineffective} on D2 to show how much of the AUC gap (0.82 vs.\ 0.65--0.75) is due to evaluation protocol.}
 {Unseen-cluster ECE and coverage before/after.}
@@ -118,14 +118,14 @@ Memory headroom & Max / P99 of GPU-memory use (vs.\ P90 of utilization) to separ
 ID & Topic & Model & Gap type & Priority \\
 \midrule
 E9 & Leakage-free history, P99 labels & A & Modelling & 1 \\
-E6 & Hybrid policy & A & Modelling & 1 \\
+E6 & Hybrid policy (done) & A & Modelling & 1 \\
 E1 & Workload mixing (rec vs.\ GenAI) & A, B & Feature eng. & 2 \\
 E2 & Workload--GPU compatibility & B & Feature eng. & 2 \\
 E3 & Production vs.\ non-production & A, B & Feature eng. & 2 \\
 E4 & Runtime patterns / resize & A & Feature eng. & 2 \\
-E8 & Per-cluster recalibration & A, B & Modelling & 2 \\
+E8 & Per-cluster recalibration (done) & A, B & Modelling & 2 \\
 E5 & Segment-aware safety budgets & A+B & Modelling & 3 \\
-E7 & Finer slices (what-if) & A & Inherent (bounded) & 3 \\
+E7 & Finer slices (what-if, done) & A & Inherent (bounded) & 3 \\
 E10 & Transfer + simulator & A+B & Inherent (partly) & stretch \\
 \bottomrule
 \end{tabular}

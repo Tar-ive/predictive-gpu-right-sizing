@@ -6,6 +6,11 @@ A research proposal built on the Alibaba Serverless Infrastructure (ASI) GPU tra
 **Advisor:** Dr. Fred Zhao
 **Course:** ISAN 3392, Texas State University, Fall 2026
 
+## Preprint
+
+- **PDF (v1, Nov 2026):** [GitHub release `preprint-v1`](https://github.com/Tar-ive/predictive-gpu-right-sizing/releases/tag/preprint-v1) · [Google Drive](https://drive.google.com/file/d/174ukA7JwGUImqec95lizQ4ObaArbujNE/view)
+- **Cite as:** Adhikari, S., & Bhandari, S. (2026). *Predictive GPU Right-Sizing for Production Online Inference* [Preprint]. Texas State University.
+
 ## Summary
 
 We predict two things at admission:
@@ -26,7 +31,13 @@ The proposal also:
 - quantifies business value;
 - designs ten follow-up experiments (E1–E10).
 
-The follow-up experiments cover workload mixing, workload–GPU compatibility, production versus non-production pods, runtime patterns, and safety constraints. **They have been designed but not yet run.**
+A follow-up round (Oct 15) ran three of them:
+
+- **E6, hybrid policy:** the history rule for warm pods plus the learned model for cold-start pods reclaims 22.6% vs. 20.7% at matched risk (p = 0.014).
+- **E7, finer slice sizes:** a what-if that adds about 5 points.
+- **E8, per-cluster recalibration:** helps reclaim but does not restore calibration or coverage on unseen clusters.
+
+The remaining experiments cover workload mixing, workload–GPU compatibility, production versus non-production pods, runtime patterns, and safety constraints. **They have been designed but not yet run.**
 
 ## Layout
 

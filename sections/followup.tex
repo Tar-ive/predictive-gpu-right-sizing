@@ -1,0 +1,65 @@
+\subsection{Follow-up round (v2, Oct 15, 2026)}
+\label{sec:followup}
+
+After the progress report, a second round ran three of the follow-ups designed in \cref{sec:experiments} (E6 hybrid policy, E7 finer slices, E8 per-cluster recalibration), added a rolling-window temporal check, and gave Model B new admission-time features. Splits, LOCO folds, slice grid and metrics are unchanged from \cref{sec:method}. Everything in this round was decided after the pre-registered gate and is \textbf{exploratory}; the gate decision in \cref{tab:gate} stands. Small differences from \cref{tab:modelA} (e.g.\ A1 $R$ 10.5\% vs.\ 11.0\%) come from re-running the full pipeline.
+
+\paragraph{New Model A variants.}
+\begin{itemize}
+  \item \textbf{A3v2:} A3 re-tuned over a wider search (14 configurations instead of 3), including an option to add history features rebuilt in the notebook from pods \emph{finished} before admission. The selected configuration (depth 6, learning rate 0.06, 765 trees) kept the original feature set.
+  \item \textbf{HYB (hybrid, H10/E6):} A1 when the workload has finished-pod history in the last 7 days, otherwise A3v2, with conformal margins fitted per (model type $\times$ history) cell.
+\end{itemize}
+
+\begin{table}[h]
+\centering\small
+\caption{Model A v2 on unseen clusters (mean of 10 LOCO clusters, test days). $R$, $U$ and coverage use the default conformal margins; ``Worst $U$'' is the highest $U$ in any single cluster; $R$@$U$=5\% re-tunes margins so each model sits at exactly 5\% in every cluster.}
+\label{tab:v2A}
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+Model & Pinball & $R$ & $U$ & Coverage & Worst $U$ & $R$@$U$=5\% \\
+\midrule
+A1 history rule & 0.0245 & 10.5\% & \textbf{0.6\%} & \textbf{96.8\%} & \textbf{1.9\%} & 20.7\% \\
+A3 XGBoost QR   & 0.0259 & 13.8\% & 1.9\% & 93.0\% & 7.3\% & 21.9\% \\
+A3v2 re-tuned   & 0.0261 & \textbf{13.9\%} & 2.0\% & 91.8\% & 9.4\% & \textbf{22.6\%} \\
+HYB hybrid      & \textbf{0.0242} & 13.3\% & 1.1\% & 94.9\% & 2.5\% & \textbf{22.6\%} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{itemize}
+  \item \textbf{The hybrid is the best Model A so far.} It has the lowest pinball loss of any model (better than A1 in 6 of 10 clusters, $p = 0.35$, not significant). At matched $U = 5\%$ it reclaims 22.6\% vs.\ 20.7\% for A1, ahead in 7 of 10 clusters ($p = 0.014$). It keeps A1's tail safety: worst-cluster $U$ is 2.5\%, against 7.3--9.4\% for A3 and A3v2. \textbf{H10 is supported} (exploratory).
+  \item \textbf{Re-tuning A3 does not change the NO-GO.} A3v2 vs.\ A1 on pinball: 4 of 10, $p = 0.84$; vs.\ A3: 5 of 10, $p = 0.58$. At matched risk A3v2 reaches 22.6\% vs.\ A1's 20.7\% ($p = 0.065$). The leakage-free history option did not win the search, which suggests the leak flagged in \cref{tab:failures} moves error less than feared, but E9 (the SQL rebuild) is still needed to confirm this.
+\end{itemize}
+
+\paragraph{Rolling-window temporal check (seen clusters).} Three expanding windows (train days 14--70/85/100, test the following 15 days) ask whether the NO-GO is specific to unseen clusters. At matched $U = 5\%$, A1 reclaims 17.4/13.9/16.0\%, A3 23.6/20.5/21.7\%, A3v2 26.2/25.2/22.8\%, and HYB 24.6/26.4/22.8\%. On clusters it has seen, the learned models reclaim 6--11 points more (A3 and A3v2) than the history rule in every window, and A3v2 has the lowest pinball loss in the two later windows. \emph{The learned model's disadvantage is a transfer problem, not a modelling one}, which agrees with RQ4.
+
+\paragraph{Finer slice sizes (E7, what-if).} Re-rounding predictions to a grid with extra sizes between 0.5 and 1.0 GPU raises $R$ at default margins by 4.8--5.8 points for every model: A1 10.5\ra16.3\%, A3 13.8\ra18.7\%, A3v2 13.9\ra18.8\%, HYB 13.3\ra18.1\%. $U$ rises with it (HYB 1.1\ra2.6\%, A3v2 2.0\ra4.1\%) because rounding up no longer adds free slack. That is larger than the entire A1-to-A3 gap, so \textbf{the slice grid matters at least as much as the predictor}. It remains an upper bound, because it assumes each slice can be enforced and isolated.
+
+\paragraph{Per-cluster recalibration of Model A (E8).} We re-estimated the conformal margin on each held-out cluster and scored the remaining test days. Reclaim rises by 3.7--5.6 points while $U$ stays at or below about 2\%: HYB 12.1\ra17.4\% ($U$ 1.1\ra2.0\%), A3v2 12.6\ra16.6\%, A1 9.5\ra15.2\%. Coverage barely moves (A3 93.0\ra93.0\%, A3v2 91.9\ra92.5\%), so the recalibration mainly loosens margins that were too conservative and does not repair exchangeability. The E8 hypothesis that A's coverage returns to $\approx$95\% is \textbf{not met}.
+
+\paragraph{Model B v2.} New admission-time features: free GPUs on the target server and the request-to-free ratio; admissions in the previous hour for the cluster and for the requested GPU type; and the cluster's recent failure rate (1-day and 7-day, and 7-day by GPU type and by priority class). \textbf{B3+feat} is B3 with these features; \textbf{B3v2} also re-tunes LightGBM over 10 configurations; \textbf{B2v2} is the random forest with the new features.
+
+\begin{table}[h]
+\centering\small
+\caption{Model B v2. Seen = temporal test days (raw scores); unseen = mean of 10 LOCO clusters (raw scores). Compare to \cref{tab:modelB}.}
+\label{tab:v2B}
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+& \multicolumn{3}{c}{Seen clusters} & \multicolumn{3}{c}{Unseen clusters} \\
+\cmidrule(lr){2-4}\cmidrule(l){5-7}
+Model & ROC-AUC & PR-AUC & ECE & ROC-AUC & PR-AUC & ECE \\
+\midrule
+B3 (v1)  & 0.754 & 0.717 & 0.065 & 0.651 & 0.615 & 0.121 \\
+B3+feat  & 0.780 & 0.741 & 0.050 & 0.668 & 0.628 & 0.095 \\
+B3v2     & \textbf{0.791} & \textbf{0.758} & \textbf{0.030} & 0.672 & 0.639 & 0.098 \\
+B2v2     & 0.788 & 0.745 & 0.070 & \textbf{0.684} & \textbf{0.649} & \textbf{0.090} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{itemize}
+  \item On seen clusters the new features help clearly: B3v2 reaches ROC-AUC 0.79 and ECE 0.030 before any post-hoc calibration.
+  \item On unseen clusters the gains are small and not significant: B3v2 vs.\ B3 on PR-AUC, 6 of 10, $p = 0.25$; on ECE, 8 of 10, $p = 0.065$. The random forest is still at least as good as boosting (B3v2 vs.\ B2v2, $p = 0.84$).
+  \item \textbf{Base-rate shift correction (E8).} Re-weighting predictions to the held-out cluster's failure rate from its first test week lowers B3's ECE from 0.128 to 0.111 (7 of 10, $p = 0.08$) but does nothing for B3v2 (0.101 vs.\ 0.103, $p = 0.54$). The recent-failure-rate features already carry the cluster's base rate. No variant reaches the E8 target of ECE $\le 0.06$ on unseen clusters; the best is 0.08 (B2v2 with validation calibration).
+\end{itemize}
+
+\paragraph{A+B composition, v2.} Re-running \cref{tab:compose} with B3v2 gives the same reclaim without a cap (11.4\% of GPU-hours, 27.5\% of pods shrunk) at a predicted risk change of 39.1\ra41.5\%. Under +10/+5/+2-point caps, reclaim falls to 6.6/3.9/2.2\%. The new check keeps only shrinks to slice sizes that appear in B's training data. Under that restriction, reclaim collapses to \textbf{1.8\%} uncapped and 0.2--0.9\% under a cap. The part of the A+B policy that the trace can actually validate is therefore under 2\% of GPU-hours. This strengthens the counterfactual-blindness limitation and makes the simulator (E10) the only way to close it.
