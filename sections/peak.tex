@@ -1,0 +1,34 @@
+\subsection{Peak-hour robustness (Nov 3, 2026)}
+\label{sec:peak}
+
+A reviewer asked whether the $\approx$21\% holds through traffic spikes or comes mostly from overnight lulls. The question matters because the label is a P90 of hourly demand: by construction, a pod that ``meets'' its label may exceed its slice in up to 10\% of its hours, and those hours are likely its busiest. $U$ counts pods, not hours, so it cannot see this.
+
+\paragraph{Method.} We queried the raw hourly pod table for the test window (days 158--183, with day 157 used to drop pods already running and day 184 for completion) with Amazon Athena, reading 22\,GiB of the 328\,GiB table. The population mirrors D1: online-inference \texttt{rec} and \texttt{genai} pods with a whole-GPU request, first seen in the window and observed for $\geq$24 hours (46{,}084 pods, 10.3M reserved GPU-hours). Hourly need is $\max(\text{SM share}, \text{memory share})$ as in $Y_{\text{MVF}}$. A \emph{spike hour} is a cluster-hour in the top decile of that cluster's total online-inference demand. Each pod receives an \emph{oracle} slice (its own realized label, snapped up to the slice ladder), so the numbers measure how much of the opportunity survives peaks, separate from prediction error. Code: \texttt{code/peak\_analysis/}.
+
+\begin{table}[h]
+\centering\small
+\caption{Reclaim under stricter sizing rules (oracle slices, test window). ``Kept'' is the share of the P90 opportunity that survives. Narrow ladder: the 19 sizes these pods use in the window (0.5 then 1.0); wide ladder: all 48 online-inference sizes in the trace.}
+\label{tab:peak}
+\begin{tabular}{@{}lcccc@{\hspace{1.2em}}cc@{}}
+\toprule
+& \multicolumn{4}{c}{Narrow ladder} & \multicolumn{2}{c}{Wide ladder} \\
+\cmidrule(lr){2-5}\cmidrule(l){6-7}
+Slice sized to cover\ldots & All & Rec & GenAI & Kept & All & Kept \\
+\midrule
+P90 of all hours (paper's label) & 35.2\% & 60.8\% & 10.8\% & 100\% & 39.5\% & 100\% \\
+P90 of spike hours only          & 32.7\% & 56.0\% & 10.4\% & 93\%  & 37.6\% & 95\% \\
+\textbf{Max of spike hours}      & \textbf{28.9\%} & 50.2\% & 8.6\% & \textbf{82\%} & 33.6\% & 85\% \\
+P99 of all hours                 & 27.4\% & 47.1\% & 8.7\% & 78\%  & 32.7\% & 83\% \\
+Max of all hours                 & 25.1\% & 43.0\% & 8.0\% & 71\%  & 30.2\% & 76\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{itemize}
+  \item \textbf{Most of the opportunity is steady headroom, not lulls.} Sizing every pod to cover its maximum demand during spike hours keeps 82\% of the P90 opportunity (85\% on the wide ladder); covering every hour's maximum keeps 71\%. About a fifth of the opportunity depends on off-peak slack. Treating the 20.8\% of pods never present in a spike hour conservatively (sizing them to their overall maximum) changes the kept share by one point (81\%).
+  \item \textbf{Overruns concentrate in spikes.} With P90 slices, 0.9--1.6\% of pod-hours exceed the slice in deciles 1--9 and 3.0\% in the spike decile. The GPU shortfall is 1.45\% of reclaimed capacity in spike hours versus 0.24--0.40\% otherwise.
+  \item \textbf{Overruns are correlated.} Per cluster-hour, the shortfall is small at the median (0.2\% of freed capacity in spike hours) but reaches 13\% at the 99th percentile and 20\% in the worst spike hour. A scheduler re-using freed capacity would need it back at the same time.
+  \item \textbf{Time of day.} Overruns peak at trace hours 2--5 (3--4\% of pod-hours) and 20--22 (2--3\%) and are lowest at hours 7--9 ($<$0.5\%). The trace's time zone is not documented, so we do not map these to local time.
+\end{itemize}
+
+\paragraph{Implication.} Applying the kept shares to the model-based result suggests that a peak-safe policy would reclaim roughly \textbf{15--17\%} of reserved GPU-hours rather than 21\% ($21\% \times 0.71$--$0.82$). This is an approximation: it assumes prediction error shrinks reclaim proportionally, and re-scoring the actual Model A slices is left to the next round. Recovering the remaining fifth would require time-varying slices (resizing between peak and off-peak), or a reserve of roughly 13--20\% of freed capacity held back for the worst spike hours. Both stay subject to the hourly-resolution and no-latency limitations (\cref{sec:limitations}).

@@ -8,7 +8,7 @@ A research proposal built on the Alibaba Serverless Infrastructure (ASI) GPU tra
 
 ## Preprint
 
-- **PDF (v1.1, Nov 2026):** [GitHub release `preprint-v1.1`](https://github.com/Tar-ive/predictive-gpu-right-sizing/releases/tag/preprint-v1.1) · [Google Drive](https://drive.google.com/file/d/174ukA7JwGUImqec95lizQ4ObaArbujNE/view)
+- **PDF (v1.2, Nov 2026):** [GitHub release `preprint-v1.2`](https://github.com/Tar-ive/predictive-gpu-right-sizing/releases/tag/preprint-v1.2) · [Google Drive](https://drive.google.com/file/d/174ukA7JwGUImqec95lizQ4ObaArbujNE/view)
 - **Cite as:** Adhikari, S., & Bhandari, S. (2026). *Predictive GPU Right-Sizing for Production Online Inference* [Preprint]. Texas State University.
 
 ## Get involved
@@ -50,6 +50,12 @@ A follow-up round (Oct 15) ran three of them:
 - **E7, finer slice sizes:** a what-if that adds about 5 points.
 - **E8, per-cluster recalibration:** helps reclaim but does not restore calibration or coverage on unseen clusters.
 
+A peak-hour check (Nov 3, `code/peak_analysis/`) asked whether the savings survive traffic spikes:
+
+- Sizing every pod to cover its maximum demand during cluster spike hours keeps **82%** of the opportunity; covering every hour's maximum keeps 71%. The savings are mostly steady headroom, not overnight lulls.
+- A peak-safe policy would reclaim roughly **15–17%** instead of 21%.
+- Overruns cluster in spike hours: in the worst 1% of spike cluster-hours, 13% of freed capacity would be needed back (20% in the single worst hour).
+
 The remaining experiments cover workload mixing, workload–GPU compatibility, production versus non-production pods, runtime patterns, and safety constraints. **They have been designed but not yet run.**
 
 ## Layout
@@ -60,6 +66,7 @@ The remaining experiments cover workload mixing, workload–GPU compatibility, p
 | `refs.bib` | Bibliography |
 | `code/ISAN3392_ModelA_RightSizing.ipynb` | Model A (right-sizing) notebook: A1/A2/A3, LOCO, conformal margins, gate |
 | `code/ISAN3392_ModelB_Readiness.ipynb` | Model B (readiness/failure) notebook: B1/B2/B3, calibration, A+B composition |
+| `code/peak_analysis/` | Peak-hour robustness check on Athena (SQL + scripts) |
 | `code/isan3392_loader.py` | Memory-safe Parquet loader and feature/split helpers |
 | `code/ISAN3392_data_dictionary.md` | Column dictionary for the D1/D2 datasets |
 | `scripts/make_figures.py` | Regenerates every figure from the reported numbers |
