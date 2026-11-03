@@ -2,18 +2,19 @@
 \label{sec:value}
 
 \subsection{Framing the headline number}
-The current result is that \textbf{about 21--25\% of reserved online-inference GPU-hours} are reclaimable while keeping under-provisioning at or below the \textbf{5\% safety constraint} ($U \le 5\%$). The 21\% end is the measured matched-risk result on unseen clusters (20.8\% A1, 21.9\% A3); the 25\% end is the upper end of the current estimate range and should be treated as provisional until E9 removes the history-feature leakage. Three tiers keep the claim honest:
+The current result is that \textbf{about 21\% of reserved online-inference GPU-hours} are reclaimable while keeping under-provisioning at or below the \textbf{5\% safety constraint} ($U \le 5\%$), measured at matched risk on unseen clusters with leakage-free features (20.8\% A1, 21.0\% A3; \cref{sec:e9}). An earlier 25\% upper estimate was withdrawn after E9. If pods must be sized for their P99 or busiest hour, the figure is \textbf{about 13--14\%}. The tiers below keep the claim honest:
 
 \begin{table}[h]
 \centering\small
 \caption{Savings tiers, from opportunity to risk-constrained policy.}
 \label{tab:tiers}
-\begin{tabularx}{\linewidth}{@{}p{3.3cm}cL@{}}
+\begin{tabularx}{\linewidth}{@{}p{4.1cm}cL@{}}
 \toprule
 Tier & Reclaimed & What it assumes \\
 \midrule
-Opportunity (upper) & 25\% & Provisional upper estimate; Model A only; perfect packing of freed slices. \\
-Opportunity (measured) & 21\% & Matched $U=5\%$ on unseen clusters; Model A only; perfect packing. \\
+Opportunity (P90 target) & 21\% & Matched $U=5\%$ on unseen clusters; leakage-free features; Model A only; perfect packing. \\
+Peak-safe (P99 label) & 14.3\% & As above, but each pod sized for its P99 hour (\cref{sec:e9}). \\
+Never short (max label) & 12.9\% & As above, but sized for its busiest hour. \\
 A+B policy, no risk cap & 11.4\% & Long-running pods; Model B re-scores each shrink; risk rises 36.0\%\ra37.8\%. \\
 A+B policy, +2-point cap & 3.4\% & Only shrinks Model B deems near-risk-neutral; mostly extrapolated sizes. \\
 \bottomrule
@@ -31,8 +32,9 @@ Per 1{,}000 reserved GPUs there are $1{,}000 \times 8{,}760 = 8.76$M GPU-hours p
 \toprule
 Tier & Reclaimed & GPU-h freed & GPUs freed & @\$1.00 & @\$3.43 & @\$3.90 \\
 \midrule
-Opportunity (upper) & 25\% & 2.19 & 250 & \$2.19 & \$7.51 & \$8.54 \\
-Opportunity (measured) & 21\% & 1.84 & 210 & \$1.84 & \$6.31 & \$7.17 \\
+Opportunity (P90 target) & 21\% & 1.84 & 210 & \$1.84 & \$6.31 & \$7.17 \\
+Peak-safe (P99 label) & 14.3\% & 1.25 & 143 & \$1.25 & \$4.30 & \$4.89 \\
+Never short (max label) & 12.9\% & 1.13 & 129 & \$1.13 & \$3.88 & \$4.41 \\
 A+B, no cap & 11.4\% & 1.00 & 114 & \$1.00 & \$3.43 & \$3.89 \\
 A+B, +2-pt cap & 3.4\% & 0.30 & 34 & \$0.30 & \$1.02 & \$1.16 \\
 \bottomrule
@@ -46,7 +48,7 @@ A+B, +2-pt cap & 3.4\% & 0.30 & 34 & \$0.30 & \$1.02 & \$1.16 \\
 \label{fig:value}
 \end{figure}
 
-\noindent For capital planning, \cref{eq:util} gives the same story: reclaiming 21\% of reservations is equivalent to raising effective utilization of the reserved pool by a factor of $1/(1-0.21) \approx 1.27$, so a fleet sized for today's demand could absorb $\approx$27\% more of the same workload before buying GPUs.
+\noindent For capital planning, \cref{eq:util} gives the same story: reclaiming 21\% of reservations is equivalent to raising effective utilization of the reserved pool by a factor of $1/(1-0.21) \approx 1.27$, so a fleet sized for today's demand could absorb $\approx$27\% more of the same workload before buying GPUs. At the peak-safe tier the same arithmetic gives $\approx$17\% more. The gap between the P90 and peak-safe tiers (about 70--80 GPUs, or \$2--3M per year per 1{,}000 GPUs at A100/H100 rates) is the price of never running short at peak. It is a per-service decision: strict for revenue-critical endpoints, looser for recommendation feeds. A per-segment budget (E5) lets an operator buy that safety only where it matters. Because the history rule matches or beats XGBoost in every E9 variant, capturing this does not require an ML pipeline.
 
 \subsection{Less idle capacity}
 ASI reports online-inference median SM utilization of 6\% and an allocation ratio of 68\% for high-priority work before SpotGPU~\cite{li2026asi}. Right-sizing at admission shrinks reservations \emph{before} they become idle headroom. Because recommendation pods hold most of the reclaimable capacity (33--43\% for rec-with-history), the most direct win is consolidating recommendation serving onto fewer GPUs.

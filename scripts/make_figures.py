@@ -164,8 +164,8 @@ def fig_value():
     hours = 8760
     fig, ax = plt.subplots(figsize=(4.8, 2.9))
     tiers = (
-        (0.25, AQUA, "25% opportunity (upper)"),
-        (0.21, BLUE, "21% opportunity (U = 5%)"),
+        (0.21, BLUE, "21% opportunity (P90, U = 5%)"),
+        (0.143, AQUA, "14.3% peak-safe (P99 label)"),
         (0.114, ORANGE, "11.4% A+B, no risk cap"),
         (0.034, VIOLET, "3.4% A+B, +2 pt risk cap"),
     )

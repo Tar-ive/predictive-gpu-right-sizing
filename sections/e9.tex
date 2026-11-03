@@ -1,0 +1,36 @@
+\subsection{E9: leakage-free history and peak-aware labels (Nov 3, 2026)}
+\label{sec:e9}
+
+E9 was the priority-1 experiment (\cref{tab:expsummary}): every Model A result depended on history features that \cref{tab:failures} flagged as possibly leaky, and on P90 labels that \cref{sec:peak} showed hide peak demand.
+
+\paragraph{Method.} We rebuilt D1 from the raw hourly trace with Amazon Athena (two scans of 202\,GiB and 57\,GiB; \$1.46 in total). Pods admitted on days 14--183 with $\geq$24 observed hours and both an SM and a memory label reproduce the original export exactly (294{,}465 pods; GenAI median $Y_{\text{MVF}}$ 0.983; the same 27-size slice grid; test cold-start share 61\%). All admission features were rebuilt except the two access-switch (ASW) features, which \texttt{pod\_hourly} does not contain. The Model A notebook's code was then run unchanged (same splits, LOCO folds, conformal margins and gate) on four variants:
+\begin{itemize}
+  \item \textbf{leaky\_p90:} \texttt{wl\_hist\_*} built from sibling pods \emph{admitted} on earlier days, as in the original export. A sibling admitted yesterday may still be running, so its label includes hours after the current pod's admission.
+  \item \textbf{clean\_p90:} \texttt{wl\_hist\_*} built only from siblings that \emph{finished} at or before admission. The rules disagree on 28\% of rows.
+  \item \textbf{clean\_p99, clean\_max:} as clean\_p90, but the label (and the history built from it) uses the P99 or the maximum of each pod's hourly need.
+\end{itemize}
+
+\begin{table}[h]
+\centering\small
+\caption{E9 results on ten held-out clusters. $R$ at $U \le 5\%$ is the matched-risk reclaimed share (mean over clusters); ``wins'' counts clusters where A3 has lower pinball loss than A1 (gate needs $\geq$8).}
+\label{tab:e9}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+Variant & A1 $R$ & A2 $R$ & A3 $R$ & A3 wins & Gate \\
+\midrule
+leaky\_p90 (reproduces \cref{tab:modelA}) & 20.8\% & 20.6\% & 21.3\% & 5/10 & \textsc{no-go} \\
+\textbf{clean\_p90}                        & \textbf{20.8\%} & 20.9\% & \textbf{21.0\%} & 3/10 & \textsc{no-go} \\
+clean\_p99                                 & 14.3\% & 12.1\% & 13.0\% & 2/10 & \textsc{no-go} \\
+clean\_max                                 & 12.9\% & 11.4\% & 12.2\% & 1/10 & \textsc{no-go} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{itemize}
+  \item \textbf{The rebuild reproduces the paper.} leaky\_p90 gives A1 20.8\% (identical) and A3 21.3\% (vs.\ 21.9\%), so the comparisons below are like for like.
+  \item \textbf{The leak was real but small.} Removing it lowers A3 by 0.3 points at matched risk and by 1.9 points at default margins (14.6\ra12.7\%), and cuts A3's pinball wins from 5 to 3 of 10. A1 is unchanged because it already used the finished-before-admission rule. \textbf{The defensible headline is about 21\%;} the provisional 25\% upper end is withdrawn.
+  \item \textbf{Peak-aware labels cost about a third.} Sizing every pod for its P99 hour reclaims 14.3\%, and for its busiest hour 12.9\%. This is below the 15--17\% that \cref{sec:peak} estimated from oracle slices, because prediction error compounds with the stricter target.
+  \item \textbf{The history rule wins under peak-aware labels.} A3 falls behind A1 (13.0\% vs.\ 14.3\%; 12.2\% vs.\ 12.9\%) and wins on pinball in only 1--2 clusters. At the high end, the admission features carry no signal beyond the workload's own history.
+\end{itemize}
+
+\paragraph{Implication.} The \textsc{no-go} stands and is now firmer: with clean features the learned model and the history rule are tied at P90 and the rule is better at P99. The E6 hybrid (22.6\%) was fitted on the old features and has not yet been re-checked; its gain came from cold-start pods, which the leak does not affect, but the number should be treated as provisional until it is. For operators, the choice between about 21\% (P90 target) and about 13--14\% (peak-safe) is a service-level decision rather than a modelling one (\cref{sec:value}). The remaining cold-start share (61\% of test pods) is where better information, not a better model, could add reclaim, which makes E4 (resize after warm-up) the next experiment. Code: \texttt{code/e9/}.

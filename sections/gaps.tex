@@ -8,8 +8,8 @@
 \toprule
 Gap vs.\ industry & Type & What we can do & Exp. \\
 \midrule
-Leaky history features & Modelling & Strict finished-before-admission rebuild. & E9 \\
-Hourly-P90 labels miss peaks & Modelling & P99/max labels from 20-s telemetry; separate memory (hard) and compute (soft). & E9, E5 \\
+Leaky history features & Modelling & Strict finished-before-admission rebuild (done; effect 0.3 pts). & E9 \\
+Hourly-P90 labels miss peaks & Modelling & P99/max labels (done at hourly resolution: 14.3\%/12.9\%); 20-s telemetry and separate memory (hard) and compute (soft) targets remain. & E9, E5 \\
 Calibration does not transfer & Modelling & Prior-shift recalibration; weighted conformal. & E8 \\
 Uniform 5\% safety budget & Modelling & Segment- and priority-aware budgets. & E5 \\
 Cold-start pods (61--68\%) & Feature eng. & Early-runtime features; resize after warm-up; hybrid routing. & E4, E6 \\

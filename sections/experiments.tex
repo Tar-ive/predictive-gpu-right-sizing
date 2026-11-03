@@ -1,7 +1,7 @@
 \section{Proposed Experiments and Feature Engineering}
 \label{sec:experiments}
 
-Every experiment below was designed with a hypothesis and a decision rule fixed in advance. E6, E7 and E8 have since been run (results in \cref{sec:followup}); the rest are \status{proposed} and not yet run. All keep the same splits, LOCO protocol, conformal margins and metrics as \cref{sec:method}, so results remain comparable to \cref{tab:modelA,tab:modelB}. Each is tagged by the model it informs: \textbf{A} (allocation), \textbf{B} (readiness/failure), or \textbf{A+B} (policy).
+Every experiment below was designed with a hypothesis and a decision rule fixed in advance. E6, E7 and E8 have since been run (results in \cref{sec:followup}), and E9 in \cref{sec:e9}; the rest are \status{proposed} and not yet run. All keep the same splits, LOCO protocol, conformal margins and metrics as \cref{sec:method}, so results remain comparable to \cref{tab:modelA,tab:modelB}. Each is tagged by the model it informs: \textbf{A} (allocation), \textbf{B} (readiness/failure), or \textbf{A+B} (policy).
 
 \subsection{New feature families}
 
@@ -93,7 +93,7 @@ Memory headroom & Max / P99 of GPU-memory use (vs.\ P90 of utilization) to separ
 {Commercial systems recalibrate per region/cluster continuously; this is the cheapest fix for the transfer gap.}
 {Addressable.}
 
-\expcard{E9. Leakage-free history and peak-aware labels}{A}
+\expcard{E9. Leakage-free history and peak-aware labels (\status{done}, \cref{sec:e9})}{A}
 {Rebuilding \texttt{wl\_hist\_*} from pods \emph{finished} before admission removes the 8\% optimistic bias; P99/max memory labels raise required slices modestly but make $U$ meaningful.}
 {SQL rebuild; re-run the full gate on fixed data before any other experiment is trusted.}
 {Change in pinball, $R$, $U$ vs.\ \cref{tab:modelA}.}
@@ -117,7 +117,7 @@ Memory headroom & Max / P99 of GPU-memory use (vs.\ P90 of utilization) to separ
 \toprule
 ID & Topic & Model & Gap type & Priority \\
 \midrule
-E9 & Leakage-free history, P99 labels & A & Modelling & 1 \\
+E9 & Leakage-free history, P99 labels (done) & A & Modelling & 1 \\
 E6 & Hybrid policy (done) & A & Modelling & 1 \\
 E1 & Workload mixing (rec vs.\ GenAI) & A, B & Feature eng. & 2 \\
 E2 & Workload--GPU compatibility & B & Feature eng. & 2 \\

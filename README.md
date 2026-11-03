@@ -8,7 +8,7 @@ A research proposal built on the Alibaba Serverless Infrastructure (ASI) GPU tra
 
 ## Preprint
 
-- **PDF (v1.2, Nov 2026):** [GitHub release `preprint-v1.2`](https://github.com/Tar-ive/predictive-gpu-right-sizing/releases/tag/preprint-v1.2) · [Google Drive](https://drive.google.com/file/d/174ukA7JwGUImqec95lizQ4ObaArbujNE/view)
+- **PDF (v1.3, Nov 2026):** [GitHub release `preprint-v1.3`](https://github.com/Tar-ive/predictive-gpu-right-sizing/releases/tag/preprint-v1.3) · [Google Drive](https://drive.google.com/file/d/174ukA7JwGUImqec95lizQ4ObaArbujNE/view)
 - **Cite as:** Adhikari, S., & Bhandari, S. (2026). *Predictive GPU Right-Sizing for Production Online Inference* [Preprint]. Texas State University.
 
 ## Get involved
@@ -31,7 +31,7 @@ We predict two things at admission:
 - **Model A (allocation):** the smallest safe GPU slice an online-inference pod needs.
 - **Model B (readiness/failure):** the risk that the pod fails to become ready.
 
-At a 5% under-provisioning budget, about 21–25% of reserved online-inference GPU-hours could be reclaimed on clusters never seen in training. Almost all of that comes from recommendation pods that have workload history.
+At a 5% under-provisioning budget, about 21% of reserved online-inference GPU-hours could be reclaimed on clusters never seen in training. Almost all of that comes from recommendation pods that have workload history.
 
 A per-workload history rule captures nearly all of the savings: 20.8% versus 21.9% for XGBoost. As a result, the learned model failed its pre-registered accuracy gate (NO-GO).
 
