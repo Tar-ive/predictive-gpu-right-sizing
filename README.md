@@ -61,6 +61,12 @@ E9 (Nov 3, `code/e9/`) rebuilt D1 without the history leak and with peak-aware l
 - The leak was real but small: XGBoost falls from 21.3% to 21.0% vs. 20.8% for the history rule. **21% is the defensible headline;** the 25% upper end is withdrawn. The gate stays NO-GO.
 - Sized for each pod's P99 or busiest hour, reclaim is **14.3% / 12.9%**, and the history rule beats XGBoost.
 
+A scheduler replay (Nov 3, `code/scheduler_replay/`) reverse-engineered six open-source GPU schedulers (VPA, kube-scheduler, NVIDIA KAI, HAMi, Volcano, Koordinator) from their release binaries and replayed their sizing rules against Model A on 22 days of the trace:
+
+- All six size GPUs from what the user declares. HAMi and Volcano reserve 100% of GPU memory when it is not declared, and Koordinator's usage estimator has no GPU case.
+- At U ≤ 5%, Model A reclaims 16.0% vs 14.6% for the VPA rule ported to GPU. VPA plus Model A for its cold starts reclaims **18.6%**.
+- On unseen clusters the learned model still does not transfer (2.4% vs 6.2% for the history rule).
+
 The remaining experiments cover workload mixing, workload–GPU compatibility, production versus non-production pods, runtime patterns, and safety constraints. **They have been designed but not yet run.**
 
 ## Layout
@@ -72,6 +78,7 @@ The remaining experiments cover workload mixing, workload–GPU compatibility, p
 | `code/ISAN3392_ModelA_RightSizing.ipynb` | Model A (right-sizing) notebook: A1/A2/A3, LOCO, conformal margins, gate |
 | `code/ISAN3392_ModelB_Readiness.ipynb` | Model B (readiness/failure) notebook: B1/B2/B3, calibration, A+B composition |
 | `code/e9/` | E9 leak-free history and peak-aware labels (Athena SQL, D1 rebuild, gate runner) |
+| `code/scheduler_replay/` | Reverse-engineered GPU scheduler rules (REA) and a trace replay against Model A |
 | `code/peak_analysis/` | Peak-hour robustness check on Athena (SQL + scripts) |
 | `code/isan3392_loader.py` | Memory-safe Parquet loader and feature/split helpers |
 | `code/ISAN3392_data_dictionary.md` | Column dictionary for the D1/D2 datasets |

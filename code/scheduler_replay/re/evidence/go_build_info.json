@@ -1,0 +1,82 @@
+{
+ "hami-scheduler": {
+  "evidence_id": "ev_41e6af84150cdf466952de1f0190fd4773740f5a01b84dbf6c2f242d0469de23",
+  "sha256": "ed76aa55de2e3ee538e59b603785e37696acd9aa30b232f5fcf2826764f7d709",
+  "bytes": 41163192,
+  "go_version": "go1.22.5",
+  "main": "github.com/Project-HAMi/HAMi",
+  "path": "github.com/Project-HAMi/HAMi/cmd/scheduler",
+  "vcs_revision": "e482ca3fc03b9644ac7a82a3b2339dcfb17ab1db",
+  "ldflags": "-s -w -X github.com/Project-HAMi/HAMi/pkg/version.version=v2.6.1",
+  "n_deps": 65,
+  "key_deps": []
+ },
+ "kai-scheduler": {
+  "evidence_id": "ev_afc967f151753878237b5ef8d75fb20d2155d77583dc1bb307a0847078915051",
+  "sha256": "4589fe4bc85d73cabecd5ea7866f8340454cdb23f66f840d568f34bdb50dc1a5",
+  "bytes": 109801655,
+  "go_version": "go1.24.4",
+  "main": null,
+  "path": "command-line-arguments",
+  "vcs_revision": null,
+  "ldflags": "-X 'github.com/NVIDIA/KAI-scheduler/pkg/scheduler/version.buildDate=2025-09-17T08:04:53Z' -X 'github.com/NVIDIA/KAI-scheduler/pkg/scheduler/version.gitCommit=0a680562b3cdbae7d81688a81ab4d829332abd0a' -X 'github.com/NVIDIA/KAI-scheduler/pkg/scheduler/version.gitVersion=v0.9.3' -X 'github.com/NVIDIA/KAI-scheduler/pkg/scheduler/version.gitTreeState=clean'",
+  "n_deps": 151,
+  "key_deps": [
+   "k8s.io/kubernetes@v1.32.7"
+  ]
+ },
+ "koord-scheduler": {
+  "evidence_id": "ev_dae5f2c261c0e0f70584c66848869800b628cdee2489d76e34051cb6d63a022e",
+  "sha256": "0f08f40feb4f36fd82175da0fc40a43af57df8806d3beac3d0e6db12c5d6f840",
+  "bytes": 93721898,
+  "go_version": "go1.20.14",
+  "main": null,
+  "path": "command-line-arguments",
+  "vcs_revision": null,
+  "ldflags": null,
+  "n_deps": 121,
+  "key_deps": [
+   "github.com/koordinator-sh/koordinator@(devel)",
+   "k8s.io/kubernetes@v1.28.7"
+  ]
+ },
+ "kube-scheduler": {
+  "evidence_id": "ev_47b1744959da98d2a5da98a42f54bcfbc348abd491d4d9f5e3e6e4568493413a",
+  "sha256": "460f5bc48ef176c82fea3592f66ba71ae5bda376f93d86f7fe44fc4759ac577b",
+  "bytes": 48840888,
+  "go_version": "go1.24.6",
+  "main": "k8s.io/kubernetes",
+  "path": "k8s.io/kubernetes/cmd/kube-scheduler",
+  "vcs_revision": "93248f9ae092f571eb870b7664c534bfc7d00f03",
+  "ldflags": null,
+  "n_deps": 105,
+  "key_deps": []
+ },
+ "vc-scheduler": {
+  "evidence_id": "ev_932c674fe7a0339709bb7fec1c91002052664839844b769f78f0acf21bf1199e",
+  "sha256": "40c141a73bd9c1b274cf7d4d4a2075519ddca5981982e42b77b293cf292e0b62",
+  "bytes": 101940254,
+  "go_version": "go1.23.7",
+  "main": "volcano.sh/volcano",
+  "path": "volcano.sh/volcano/cmd/scheduler",
+  "vcs_revision": "f7acc998d1b23f045b3e3f53cdccff1695bbff37",
+  "ldflags": " -X 'volcano.sh/volcano/pkg/version.GitSHA=f7acc998d1b23f045b3e3f53cdccff1695bbff37' -X 'volcano.sh/volcano/pkg/version.Built=2025-05-31 12:01:07' -X 'volcano.sh/volcano/pkg/version.Version=v1.12.1'",
+  "n_deps": 84,
+  "key_deps": [
+   "k8s.io/kubernetes@v1.32.2",
+   "volcano.sh/apis@v1.12.1"
+  ]
+ },
+ "vpa-recommender": {
+  "evidence_id": "ev_10bb0e63af7ab0601a84781923ceadfd74467bc1d1a7bb7e75a32fec8e0b792e",
+  "sha256": "8deff4df84b3cc0e99b30765dca63a2146233adda7c777f1b1e2eae1d283f1e2",
+  "bytes": 52625592,
+  "go_version": "go1.24.3",
+  "main": "k8s.io/autoscaler/vertical-pod-autoscaler",
+  "path": "k8s.io/autoscaler/vertical-pod-autoscaler/pkg/recommender",
+  "vcs_revision": null,
+  "ldflags": "-s",
+  "n_deps": 55,
+  "key_deps": []
+ }
+}
