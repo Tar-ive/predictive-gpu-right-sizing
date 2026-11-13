@@ -1,0 +1,6 @@
+GPU_SPEC_PUBLIC,GPU_COUNT,ASW_ID,CPU_CAPACITY_CORES,CLUSTER_ID,SERVER_ID,SOURCE_FILE,DAY_,HOUR_
+A10,1,c2e1b2fc82f7ccbc921effead06fbc2a,128,4d6f06d02df4e9de96966a73d9e8a4dd,b7f77660cfc9aa8a2597119d5e0c595b,asi_opensource_server_hourly/day=158/hour=03/part-000.parquet,158,3
+XPU-E,16,b4ec22bb5e46076dd8c221506fa23707,192,9089d80baea5f56a3c169801052daa1f,eaca758f37476008a1f3dabf35b08531,asi_opensource_server_hourly/day=158/hour=03/part-000.parquet,158,3
+L20,2,649a9b1ec8821340134f46f61d29a2d5,192,70870b9abdf0a944615e4987e21869b3,17ce65b044371861e825afcbef926f0c,asi_opensource_server_hourly/day=158/hour=03/part-000.parquet,158,3
+XPU-B,1,dcd2a8eeb0e8b452dee43ec099f29e83,192,4d6f06d02df4e9de96966a73d9e8a4dd,d9dc0f06b559b4aba51ccc6f9be360f8,asi_opensource_server_hourly/day=158/hour=03/part-000.parquet,158,3
+H20,8,aeb37751f0463871618003c0705388de,192,87532e3737169e035fad3c9f3ab7f85e,e3dd0cf748cf2fe654c26bc4925c59e6,asi_opensource_server_hourly/day=158/hour=03/part-000.parquet,158,3
