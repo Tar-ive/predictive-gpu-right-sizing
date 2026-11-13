@@ -22,7 +22,7 @@ We're looking for advisors, reviewers, and data partners. We'd especially like t
 
 Partners get the full pipeline (loader, features, leave-one-cluster-out harness, pre-registered go/no-go gate) to run on their own data, and co-authorship on joint work.
 
-**How to reach us:** email **pqo14@txstate.edu**, start a thread in [Discussions](https://github.com/Tar-ive/predictive-gpu-right-sizing/discussions), or open a [data or collaboration offer](https://github.com/Tar-ive/predictive-gpu-right-sizing/issues/new?template=data-collaboration.yml).
+**How to reach us:** email **pqo14@txstate.edu**, ** ipi8@txstate.edu**, start a thread in [Discussions](https://github.com/Tar-ive/predictive-gpu-right-sizing/discussions), or open a [data or collaboration offer](https://github.com/Tar-ive/predictive-gpu-right-sizing/issues/new?template=data-collaboration.yml).
 
 ## Summary
 
