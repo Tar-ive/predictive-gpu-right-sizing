@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plan: From Reclaimable to Reusable GPU Capacity</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #fbfaf7;
+    --surface: #ffffff;
+    --ink: #1f2328;
+    --muted: #5d6670;
+    --line: #dfdcd3;
+    --accent: #2a78d6;
+    --good: #12805c;
+    --warn: #b84e1f;
+    --soft: #f3f2ee;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15181c;
+      --surface: #1d2126;
+      --ink: #e7e9ec;
+      --muted: #a2abb5;
+      --line: #343a42;
+      --accent: #6aa9f0;
+      --good: #4fc79c;
+      --warn: #f0935f;
+      --soft: #262b31;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 var(--sans); }
+  main { max-width: 900px; margin: 0 auto; padding: 48px 20px 96px; }
+  h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 12px; }
+  h2 { font-size: 1.4rem; margin: 48px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  h3 { font-size: 1.12rem; margin: 26px 0 8px; }
+  h4 { font-size: 1rem; margin: 22px 0 6px; }
+  a { color: var(--accent); }
+  code { font: 0.86em var(--mono); background: var(--soft); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+  pre { background: var(--soft); padding: 14px 16px; border-radius: 6px; overflow-x: auto; line-height: 1.45; }
+  pre code { background: none; padding: 0; overflow-wrap: normal; }
+  details.meta, #questionables details, #amendments details { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 8px 14px; margin: 10px 0; }
+  summary { cursor: pointer; font-weight: 600; }
+  dl { display: grid; grid-template-columns: 110px 1fr; gap: 4px 12px; margin: 10px 0 4px; font-size: 0.9rem; }
+  dt { color: var(--muted); }
+  dd { margin: 0; overflow-wrap: anywhere; }
+  figure { margin: 20px 0; }
+  figure img { display: block; max-width: 100%; margin: 0 auto; border-radius: 6px; }
+  figcaption { color: var(--muted); font-size: 0.86rem; text-align: center; }
+  figure:not(:has(img)) figcaption::before { content: "Image pending \00B7  "; color: var(--warn); }
+  .tag { font: 0.72rem var(--mono); padding: 1px 6px; border-radius: 10px; border: 1px solid var(--line); }
+  .tag.existing { color: var(--muted); }
+  .tag.new { color: var(--good); border-color: var(--good); }
+  .files ul { padding-left: 0; list-style: none; }
+  .files li { margin: 6px 0; }
+  .phase { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 4px 20px 18px; margin: 20px 0; }
+  .phase .when { color: var(--muted); font-size: 0.9rem; margin-top: -4px; }
+  .checklist { list-style: none; padding-left: 0; }
+  .checklist li { margin: 7px 0; padding-left: 2.6em; text-indent: -2.6em; }
+  code.status { color: var(--accent); font-weight: 600; }
+  .loop { background: var(--soft); border-left: 3px solid var(--accent); padding: 8px 12px; border-radius: 4px; font-size: 0.92rem; margin-top: 12px; }
+  .callout { background: var(--soft); border-left: 3px solid var(--warn); padding: 10px 14px; border-radius: 4px; margin: 14px 0; }
+  .qa-answer { margin: 8px 0 4px; }
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.9rem; margin: 12px 0; }
+  th, td { border-bottom: 1px solid var(--line); padding: 6px 10px 6px 0; text-align: left; vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+
+  <!-- ===== HEADER + UPDATABLE METADATA ===== -->
+  <header>
+    <h1>Plan: From Reclaimable to Reusable GPU Capacity</h1>
+    <details class="meta">
+      <summary>Metadata</summary>
+      <dl>
+        <dt>created</dt>      <dd>2026-11-09T18:47:48Z</dd>
+        <dt>modified</dt>     <dd>2026-11-09T18:47:48Z, 2026-11-09T19:01:54Z, 2026-11-09T19:09:27Z, 2026-11-09T19:12:34Z, 2026-11-13T06:12:35Z, 2026-11-13T08:34:39Z</dd>
+        <dt>commits</dt>      <dd>956f6d9 (base; the Nov 8 results in sections/replay.tex are uncommitted at plan creation), 4a75959 (reviewed; on unmerged branch claude/funny-ptolemy-41wsmv), 1d13f8b (scheduler replay merged into local main; emulator code uncommitted)</dd>
+        <dt>agent name</dt>   <dd>Claude Code (claude-opus-5-5), Claude Code (claude-opus-5-5), Claude Code (claude-opus-5-5), Claude Code (claude-opus-5-5), Claude Code (claude-opus-5-5), Claude Code (claude-opus-5-5)</dd>
+        <dt>session id</dt>   <dd>33b52274-b7dd-44be-a10b-50b7581151c0, 33b52274-b7dd-44be-a10b-50b7581151c0, 33b52274-b7dd-44be-a10b-50b7581151c0, 33b52274-b7dd-44be-a10b-50b7581151c0, 33b52274-b7dd-44be-a10b-50b7581151c0, 33b52274-b7dd-44be-a10b-50b7581151c0</dd>
+        <dt>back refs</dt>    <dd>sections/replay.tex, main.tex (Table 22), code/e9/README.md, code/peak_analysis/README.md, code/scheduler_replay/README.md (branch claude/funny-ptolemy-41wsmv)</dd>
+        <dt>forward refs</dt> <dd>none yet, code/emulator/README.md, code/emulator/results/</dd>
+      </dl>
+    </details>
+  </header>
+
+  <figure>
+    <!-- {{HERO_IMAGE: a funnel narrowing from large "Reclaimable" GPU capacity to small "Reusable" capacity, minimal blue and orange}} -->
+    <figcaption>Most GPU capacity freed on paper never becomes capacity a new job can use.</figcaption>
+  </figure>
+
+  <!-- ===== PURPOSE / PROBLEM / SOLUTION ===== -->
+  <section id="purpose">
+    <h2>Purpose</h2>
+    <p>Make the Predictive GPU Right-Sizing paper stand out without access to a live scheduler, by making its central contribution an answer to a question trace studies can address: <strong>how much over-reserved GPU capacity actually converts into capacity another job can use, and what stops the rest?</strong> The core work lands before the Nov 29, 2026 results freeze and the Dec 8 final write-up. The extensions originally planned for after the course (Phases 6&ndash;9) now start immediately as a parallel track; whatever is finished by Nov 26 can enter the paper, and the rest becomes follow-on work.</p>
+  </section>
+
+  <section id="problem">
+    <h2>Problem</h2>
+    <p>The paper's headline (about 21% reclaimable) is an opportunity estimate. The Nov 8 capacity replay shows that only 3.8% of freed GPU-hours are usable, and that replay has three weaknesses a reviewer will find quickly:</p>
+    <ul>
+      <li><strong>It shrinks only test pods,</strong> so freed GPU-hours are 1.2% of cluster capacity. Fragments rarely meet, which may understate how often they combine.</li>
+      <li><strong>It tests one new-job profile</strong> (the cluster's median CPU per GPU, taken from a CPU-heavy online-inference population) and does not break down why each freed GPU-hour is lost.</li>
+      <li><strong>It cannot be reproduced from this repository.</strong> The hourly, fallback, capacity and H5&ndash;H7 code is not in <code>code/</code>, and <code>sections/replay.tex</code> is transcribed from the progress report.</li>
+    </ul>
+    <p>Other gaps are inherent to an observational trace: no latency field, no counterfactual placements and no way to resize a pod. Those can be bounded, but only with new evidence.</p>
+    <figure>
+      <!-- {{PROBLEM_IMAGE: a GPU server with half-used GPUs and exhausted CPU cores beside it, showing unusable capacity}} -->
+      <figcaption>A shrunk pod frees part of a GPU but keeps its CPU, so the freed capacity cannot be used when the server is out of CPU.</figcaption>
+    </figure>
+  </section>
+
+  <section id="solution">
+    <h2>Solution</h2>
+    <p>Put the existing replay into the repository and prove it reproduces the reported numbers. Then extend it into a <strong>loss waterfall</strong> that assigns every freed GPU-hour to one of the causes used in the ASI paper (fractional residue, multi-GPU shortfall, insufficient CPU) or to usable capacity, at realistic fleet-wide scale. This produces a finding that follows directly from ASI's own taxonomy: ASI reports fractional fragmentation is negligible <em>because GPU sharing is rarely used</em>, so a right-sizing policy may bring that cause back.</p>
+    <p>The unmerged scheduler replay (commit <code>4a75959</code>) adds what the paper lacks on the industry side: the sizing rules open-source GPU schedulers really use, a place where a predictor could plug in, and an optimistic packing estimate that brackets the capacity replay from above. Phase 1B hardens it before anything relies on it.</p>
+    <p>In parallel, test the levers the waterfall exposes. Use an emulator for repacking, a small rented testbed to connect shortfall to latency, a natural experiment for placement risk, and online conformal prediction for the coverage gap. Every stage states in advance what result would count as support.</p>
+    <figure>
+      <!-- {{SOLUTION_IMAGE: a waterfall chart decomposing freed GPU-hours into fractional, multi-GPU, CPU, usable}} -->
+      <figcaption>The waterfall assigns every freed GPU-hour to exactly one outcome.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ===== RELEVANT FILES ===== -->
+  <section id="files" class="files">
+    <h2>Relevant Files</h2>
+
+    <h3>Existing Files</h3>
+    <ul>
+      <li><span class="tag existing">existing</span> <code>code/e9/athena.py</code> &mdash; Athena runner; reuse it by path instead of adding a third copy.</li>
+      <li><span class="tag existing">existing</span> <code>code/e9/sql/</code>, <code>code/e9/build_d1.py</code> &mdash; leak-free D1 rebuild and the conventions new SQL should follow.</li>
+      <li><span class="tag existing">existing</span> <code>code/e9/run_gate.py</code> &mdash; runs notebook cells for the LOCO gate; the hybrid re-run extends it.</li>
+      <li><span class="tag existing">existing</span> <code>code/peak_analysis/sql/01_setup.sql</code> &mdash; authoritative <code>pod_hourly</code> schema, including <code>cpu_request_cores</code>, <code>avg_cpu_request_util</code>, <code>priority_class</code>, <code>server_cpu_capacity_cores</code>.</li>
+      <li><span class="tag existing">existing</span> <code>code/ISAN3392_ModelA_RightSizing.ipynb</code>, <code>code/ISAN3392_ModelB_Readiness.ipynb</code> &mdash; model and conformal definitions.</li>
+      <li><span class="tag existing">existing</span> <code>sections/replay.tex</code> &mdash; current hourly, fallback, capacity and H5&ndash;H7 results; the capacity section is revised.</li>
+      <li><span class="tag existing">existing</span> <code>sections/value.tex</code>, <code>sections/comparison.tex</code>, <code>sections/gaps.tex</code>, <code>main.tex</code> &mdash; claims and framing that change with the new contribution.</li>
+      <li><span class="tag existing">existing</span> <code>scripts/make_figures.py</code>, <code>scripts/check_pdf.py</code> &mdash; figure generation and the required layout eval.</li>
+      <li><span class="tag existing">existing</span> <code>README.md</code> &mdash; public entry point; gains benchmark instructions.</li>
+      <li><span class="tag existing">existing (branch)</span> <code>code/scheduler_replay/</code> on <code>claude/funny-ptolemy-41wsmv</code> &mdash; scheduler sizing ports, packing replay, public-ZIP fetcher and <code>re/FINDINGS.md</code>; not in <code>main</code>.</li>
+      <li><span class="tag existing">existing (S3)</span> <code>spot_gpu_v2026/</code>, <code>gpu_v2023/</code>, <code>gpu_v2025/dlrm_trace/</code>, <code>genai_traces/</code> in the project bucket &mdash; SpotGPU overlap, emulator validation, recommendation workloads and a small response-time signal.</li>
+    </ul>
+
+    <h3>New Files</h3>
+    <ul>
+      <li><span class="tag new">new</span> <code>code/capacity/README.md</code> &mdash; run order, cost and data access, matching the E9 and peak-analysis READMEs.</li>
+      <li><span class="tag new">new</span> <code>code/capacity/sql/</code> &mdash; window extract (all pods, days 157&ndash;184), server inventory and CPU-aware server-hour tables.</li>
+      <li><span class="tag new">new</span> <code>code/capacity/replay_hourly.py</code>, <code>fallback.py</code>, <code>capacity.py</code>, <code>mixing_h5_h7.py</code> &mdash; the Nov 8 analyses.</li>
+      <li><span class="tag new">new</span> <code>code/capacity/fragmentation.py</code> &mdash; per-server-hour loss classifier.</li>
+      <li><span class="tag new">new</span> <code>code/capacity/scenarios.py</code> &mdash; shrink scopes S0&ndash;S3 and new-job profiles.</li>
+      <li><span class="tag new">new</span> <code>code/capacity/baselines.json</code>, <code>reproduce.py</code> &mdash; locked Nov 8 numbers and the check against them.</li>
+      <li><span class="tag new">new</span> <code>code/capacity/DECISION_RULES.md</code> &mdash; hypotheses and thresholds, committed before the results are generated.</li>
+      <li><span class="tag new">new</span> <code>code/capacity/tests/</code> &mdash; conservation, leakage and classifier tests.</li>
+      <li><span class="tag new">new</span> <code>sections/fragmentation.tex</code> &mdash; waterfall results and interpretation.</li>
+      <li><span class="tag new">new</span> <code>code/emulator/</code>, <code>code/testbed/</code>, <code>code/natural_experiment/</code>, <code>code/conformal/</code> &mdash; post-course work, each with its own README.</li>
+    </ul>
+  </section>
+
+  <!-- ===== IMPLEMENTATION PHASES ===== -->
+  <section id="phases">
+    <h2>Implementation Phases</h2>
+    <p><strong>IMPORTANT:</strong> Execute every phase and task step by step, in order, top to bottom.</p>
+    <p>Status markers: <code>[]</code> idle &middot; <code>[wip]</code> in progress &middot; <code>[x]</code> complete &middot; <code>[f]</code> failed. All start as <code>[]</code>; the Build Plan workflow updates them as it works.</p>
+
+    <div class="phase">
+      <h3><code class="status">[]</code> Phase 0: Prerequisites and novelty check</h3>
+      <p class="when">Target: Nov 9&ndash;12, 2026</p>
+      <p>Remove the blockers, and check the novelty claim before the paper is built around it.</p>
+
+      <h4>0.1. Restore access</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> Confirm the <code>alibaba_trace</code> Athena database still lists <code>pod_hourly</code>, <code>d1_hourly</code> and <code>server_hour</code>. Login was restored and the tables were listed on Nov 9; the default AWS region is set to the invalid value <code>us</code>, so set it to <code>us-east-1</code> or pass <code>--region</code>.</li>
+        <li><code class="status">[]</code> Rebuild D1 from <code>athena-tables/d1_export/</code> (present: 18 objects, 99 MB) with <code>code/e9/build_d1.py</code>. Locate or rebuild D2, which is not in the bucket under its dataset name and was not found under <code>~/school</code>.</li>
+        <li><code class="status">[]</code> Get from Sudip Bhandari: the replay, fallback, capacity and H5&ndash;H7 notebooks or queries; saved per-pod slices; and the source of the &ldquo;18.8%, worst cluster 4.8%&rdquo; hybrid figure.</li>
+        <li><code class="status">[]</code> Hard gate on Nov 12: if the code has not arrived, switch to the A1-only re-implementation in Phase 1 (A1 needs no model training).</li>
+      </ul>
+
+      <h4>0.2. Check novelty and overlap</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> Read FGD, the ASI IPC and SpotGPU sections, and COMPASS-ABS in full, and record what each measures about reuse of freed capacity in a short table.</li>
+        <li><code class="status">[]</code> Run a targeted search for prior work that follows right-sizing savings through to allocatable capacity. Adjust the contribution wording if something close exists.</li>
+        <li><code class="status">[]</code> Extract the Figure 13 values from the ASI paper for use as a validation target in Phase 2.</li>
+      </ul>
+
+      <h4>0.3. Testing Strategy</h4>
+      <p>Confirm access and required tables with cheap queries before any large scan.</p>
+      <ul class="checklist">
+        <li><code class="status">[]</code> <code>aws sts get-caller-identity --region us-east-1</code> &mdash; AWS session is valid.</li>
+        <li><code class="status">[]</code> <code>aws athena list-table-metadata --catalog-name AwsDataCatalog --database-name alibaba_trace --region us-east-1 --query "TableMetadataList[].Name"</code> &mdash; required tables exist.</li>
+        <li><code class="status">[]</code> <code>test -s code/capacity/notes/novelty_check.md</code> &mdash; novelty notes were written.</li>
+      </ul>
+      <div class="loop">🔁 <strong>Do not exit this phase until every box above is checked.</strong> If any command fails, fix the cause and re-run &mdash; loop until all pass.</div>
+    </div>
+
+    <div class="phase">
+      <h3><code class="status">[]</code> Phase 1: Put the replay in the repository and reproduce it</h3>
+      <p class="when">Target: Nov 11&ndash;15, 2026</p>
+      <p>Nothing is extended until the existing numbers are reproduced from committed code. This phase also creates the core of the public benchmark.</p>
+
+      <h4>1.1. Port the analyses</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> Create <code>code/capacity/</code> following the numbered SQL and run-order conventions of <code>code/e9</code>.</li>
+        <li><code class="status">[]</code> Write <code>sql/01_window_extract.sql</code>: all pods on days 157&ndash;184 with server, GPU and CPU request, CPU utilization, priority and presence weight.</li>
+        <li><code class="status">[]</code> Confirm how the original replay computed the &ldquo;share of the hour present&rdquo; weight, since no field in <code>pod_hourly</code> names it directly.</li>
+        <li><code class="status">[]</code> Port or re-implement hourly replay, fallback, capacity replay and H5&ndash;H7.</li>
+        <li><code class="status">[]</code> If Sudip's slices are unavailable, regenerate A1 slices using only finished-before-admission history, per-cell conformal margins and the 27-size ladder.</li>
+      </ul>
+
+      <h4>1.2. Lock the baselines</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> Record in <code>baselines.json</code>: 1,011,584 freed GPU-hours, 29.5% whole, 3.8% usable, 1.2% no-sharing, 97.8% weighted allocation, 115% unweighted, 37,832 servers, 43,359 pods, A1 and A3 short hours of 0.44% and 1.39%, and A1 fallback of 0.93%&rarr;0.18% and 11.95%&rarr;11.40%.</li>
+        <li><code class="status">[]</code> Write <code>reproduce.py</code> with tolerances: freed hours &plusmn;1%, whole share &plusmn;0.5 points, usable share &plusmn;0.3 points, short hours &plusmn;0.05 points.</li>
+        <li><code class="status">[]</code> If a value falls outside tolerance, explain the difference in the README. Do not silently replace the baseline; correct the paper if the original was wrong.</li>
+      </ul>
+
+      <h4>1.3. Testing Strategy</h4>
+      <p>Pytest on small synthetic frames for logic, and <code>reproduce.py</code> against the full data. Cover edge cases: pods spanning day boundaries, zero-presence hours, servers already over-allocated, and pods with no workload history.</p>
+      <ul class="checklist">
+        <li><code class="status">[]</code> <code>uv run --with pytest --with pandas --with pyarrow --with numpy pytest code/capacity/tests -q</code> &mdash; logic is correct, and no history feature uses a sibling that finished after admission.</li>
+        <li><code class="status">[]</code> <code>uv run --with pandas --with pyarrow --with numpy python code/capacity/reproduce.py --check code/capacity/baselines.json</code> &mdash; Nov 8 numbers are reproduced within tolerance.</li>
+      </ul>
+      <div class="loop">🔁 <strong>Do not exit this phase until every box above is checked.</strong> If any command fails, fix the cause and re-run &mdash; loop until all pass.</div>
+    </div>
+
+    <div class="phase">
+      <h3><code class="status">[]</code> Phase 1B: Review and harden the scheduler replay</h3>
+      <p class="when">Target: Nov 12&ndash;20, 2026</p>
+      <p>Commit <code>4a75959</code> compares Model A with sizing rules recovered from six GPU schedulers. Its schedulers table and packing replay are useful, but its headline numbers (A3 16.0% vs. VPA 14.6%; VPA + A3 for cold starts 18.6%) cannot go in the paper yet, for the reasons recorded in the Notes.</p>
+
+      <h4>1B.1. Bring it into the main line</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> Review branch <code>claude/funny-ptolemy-41wsmv</code> (3 commits ahead of <code>main</code>). Merge only with the authors' go-ahead, and first resolve its README line saying the remaining experiments have not been run.</li>
+        <li><code class="status">[]</code> Cross-check each recovered constant against upstream source or documentation for the same release, and cite both.</li>
+        <li><code class="status">[]</code> Describe VPA and Koordinator on GPU as <em>ports</em>: neither sizes GPUs today, so the deployed incumbent is the user's declared request, which reclaims 0%.</li>
+      </ul>
+
+      <h4>1B.2. Fix the evaluation</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> Remove right-censoring: 22-day test pods still running at day 111 have truncated labels and reserved hours, and they are not excluded. Use the paper's full splits (train 14&ndash;129, validation 130&ndash;157, test 158&ndash;183, day 184 for completion).</li>
+        <li><code class="status">[]</code> Use the paper's 27-size ladder and D1 population, so results are comparable with the existing tables.</li>
+        <li><code class="status">[]</code> Add the VPA rule and VPA + A3 for cold starts to the 10-cluster leave-one-cluster-out gate. The commit reports only A1, A3 and hybrid there, and VPA needs no training, so this is the comparison that matters most.</li>
+        <li><code class="status">[]</code> Report paired Wilcoxon tests across clusters with Holm correction, at both matched risk and deployable margins. The commit reports one pooled cohort with no uncertainty.</li>
+        <li><code class="status">[]</code> Add an A1 variant that uses live samples from running siblings up to admission. VPA has this information while A1 uses finished pods only, so the comparison currently mixes rule quality with information access.</li>
+      </ul>
+
+      <h4>1B.3. Keep what adds value</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> Add the overloaded-shared-GPU-hours metric to the hourly replay. It is a co-location safety measure the paper does not have.</li>
+        <li><code class="status">[]</code> Reconcile any safety claim explicitly: the commit finds A3 safest on seen clusters, and the Nov 8 replay finds A1 safest on unseen clusters. These are different test settings and should be presented as such.</li>
+      </ul>
+
+      <h4>1B.4. Testing Strategy</h4>
+      <p>Reproduce the commit's table first as a control, then apply each fix separately so its effect can be measured. Edge cases: pods with no workload ID, clusters with few test pods, and pods crossing the window boundary.</p>
+      <ul class="checklist">
+        <li><code class="status">[]</code> <code>uv run --with pytest --with pandas --with numpy pytest code/scheduler_replay/tests -q</code> &mdash; no right-censored pod is scored, and no sample after admission reaches a sizing rule.</li>
+        <li><code class="status">[]</code> <code>uv run --with pandas python code/scheduler_replay/check_constants.py code/scheduler_replay/re/source_crosscheck.csv</code> &mdash; each recovered constant matches an upstream citation.</li>
+        <li><code class="status">[]</code> <code>test -s results/scheduler_replay/loco_paired_tests.json</code> &mdash; paired tests across clusters were produced.</li>
+      </ul>
+      <div class="loop">🔁 <strong>Do not exit this phase until every box above is checked.</strong> If any command fails, fix the cause and re-run &mdash; loop until all pass.</div>
+    </div>
+
+    <div class="phase">
+      <h3><code class="status">[]</code> Phase 2: Loss waterfall at fleet-wide scale</h3>
+      <p class="when">Target: Nov 15&ndash;24, 2026</p>
+      <p>The main new result. Decision rules are committed first, tuned on days 158&ndash;170 and reported once on days 171&ndash;183. Those days have been used before, so results are labelled &ldquo;rule set before running&rdquo; rather than pre-registered.</p>
+      <figure>
+        <!-- {{PHASE_IMAGE: scope ladder of shrunk pods S0 to S3 feeding one server-hour classifier}} -->
+        <figcaption>Each shrink scope feeds the same server-hour classifier.</figcaption>
+      </figure>
+
+      <h4>2.1. Commit the decision rules</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> Confirm the thresholds listed under Questionables, then write them into <code>DECISION_RULES.md</code> and commit before generating results.</li>
+      </ul>
+
+      <h4>2.2. Implement the classifier</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> Implement the per-server-hour classifier below, under ideal-sharing and no-sharing bounds. The trace records servers but not GPU indices, so per-card placement cannot be observed.</li>
+        <li><code class="status">[]</code> Sweep new-job profiles: ASI's Figure 13 grid (1G8C, 1G12C, 4G32C, 4G48C, 4G64C, 8G64C, 8G96C, 8G128C), the cluster median, and a GenAI-median profile.</li>
+      </ul>
+<pre><code># for one server-hour and new job (g GPUs, c CPUs)
+free_gpu  = server_gpus - sum(gpu_alloc_after)      # ideal sharing
+whole     = floor(free_gpu)
+residual  = free_gpu - whole                        # fractional residue
+free_cpu  = server_cpus - sum(cpu_request_after)
+n_jobs    = min(whole // g, free_cpu // c) if c > 0 else whole // g
+usable    = n_jobs * g
+left      = whole - usable
+insufficient_cpu = left if free_cpu &lt; c and whole &gt;= g else 0 # after the jobs that fit
+multi_gpu_short  = left - insufficient_cpu          # whole GPUs too few for g
+# Invariant, also applied to the before/after differences:
+assert isclose(free_gpu, usable + insufficient_cpu + multi_gpu_short + residual)</code></pre>
+      <div class="table-wrap"><table>
+        <tr><th>Term used in this project</th><th>Meaning</th><th>ASI</th><th>FGD</th></tr>
+        <tr><td><strong>Insufficient CPU</strong></td><td>Enough free GPU for the job, but too little free CPU on the node.</td><td>Insufficient CPUs</td><td>Stranded</td></tr>
+        <tr><td><strong>Multi-GPU shortfall</strong></td><td>Whole GPUs are free, but too few on one node for the job.</td><td>Stranded GPUs</td><td>Insufficient GPU capacity (deficient)</td></tr>
+        <tr><td><strong>Fractional residue</strong></td><td>Partial GPU left over that cannot serve a whole-GPU job.</td><td>Fractional GPU</td><td>Partial GPUs counted as fragments</td></tr>
+      </table></div>
+      <ul class="checklist">
+        <li><code class="status">[]</code> Compute the marginal effect of shrinking as after minus before for each term. Terms can be negative, for example when two halves merge into a whole GPU.</li>
+        <li><code class="status">[]</code> Refine the CPU rule to account for remaining CPU after the fitted jobs, and test it. The pseudo-code above shows the intended split, not final logic.</li>
+      </ul>
+
+      <h4>2.3. Validate against ASI on the unshrunk trace</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> Run the classifier with no pods shrunk and compare it with ASI Figure 13: fractional near zero, insufficient CPU dominant at high CPU/GPU ratios (1G8C, 8G128C), multi-GPU shortfall (ASI's &ldquo;stranded&rdquo;) dominant at mid sizes (4G32C through 8G64C).</li>
+        <li><code class="status">[]</code> Document any mismatch. The likely causes are hour selection, cluster scope, and the unmodelled ASW topology constraint.</li>
+      </ul>
+
+      <h4>2.4. Run the shrink scopes</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> S0: test-admitted D1 pods only. Must reproduce Phase 1.</li>
+        <li><code class="status">[]</code> S1: S0 plus D1-scope pods already running at day 158, sized by A1 using only information before their admission.</li>
+        <li><code class="status">[]</code> S2: S1 plus online-inference rec and GenAI whole-GPU pods shorter than 24 hours; pods without history keep their full request.</li>
+        <li><code class="status">[]</code> S3: oracle slices at S1 scope, as the upper bound.</li>
+        <li><code class="status">[]</code> All scopes use A1 with the 6-hour fallback and report both percent of freed GPU-hours and usable GPUs per 1,000 reserved.</li>
+        <li><code class="status">[]</code> Add peak-aware sensitivity: re-run S1 with P99 labels, since existing replays use P90 labels and are probably optimistic.</li>
+        <li><code class="status">[]</code> Report the bracket: the capacity replay as the constrained estimate (pods stay on their servers, CPU counts) and the commit's cluster-level packing as the optimistic estimate (no server or CPU limits), on the same pods and days.</li>
+      </ul>
+
+      <h4>2.5. Measure overlap with SpotGPU</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> Use <code>priority_class</code> to estimate how much freed capacity sits on servers where low-priority pods already use lent capacity. Report the share of the opportunity that may already be harvested.</li>
+        <li><code class="status">[]</code> Inspect <code>spot_gpu_v2026/job_info</code> and <code>node_info</code> in the project bucket, and use them if they identify lent capacity more directly than <code>priority_class</code>.</li>
+      </ul>
+
+      <h4>2.6. Testing Strategy</h4>
+      <p>Property-based checks on the classifier, then the same conservation check on real output. Edge cases: over-allocated servers, zero-CPU requests, 8-GPU jobs on 1-GPU servers, and residues within floating-point tolerance of 1.0.</p>
+      <ul class="checklist">
+        <li><code class="status">[]</code> <code>uv run --with pytest --with hypothesis --with pandas --with pyarrow --with numpy pytest code/capacity/tests/test_fragmentation.py -q</code> &mdash; each freed GPU-hour is counted exactly once.</li>
+        <li><code class="status">[]</code> <code>uv run --with pandas --with pyarrow --with numpy python code/capacity/fragmentation.py --scope S0 --check code/capacity/baselines.json</code> &mdash; S0 matches the reproduced baseline.</li>
+        <li><code class="status">[]</code> <code>uv run --with pandas --with pyarrow --with numpy python code/capacity/fragmentation.py --validate-asi code/capacity/notes/asi_fig13.csv</code> &mdash; the unshrunk classifier matches ASI's cause ordering.</li>
+        <li><code class="status">[]</code> <code>git log --format=%H -n1 -- code/capacity/DECISION_RULES.md</code> &mdash; rules were committed before the report-half results.</li>
+      </ul>
+      <div class="loop">🔁 <strong>Do not exit this phase until every box above is checked.</strong> If any command fails, fix the cause and re-run &mdash; loop until all pass.</div>
+    </div>
+
+    <div class="phase">
+      <h3><code class="status">[]</code> Phase 3: In-place levers (drop first if behind)</h3>
+      <p class="when">Target: Nov 20&ndash;26, 2026</p>
+      <p>Two of the three proposed fixes do not need an emulator because pods stay on their servers. This is the cheapest route from &ldquo;here is the problem&rdquo; to &ldquo;here is how much a fix is worth&rdquo;.</p>
+
+      <h4>3.1. Go/no-go on CPU headroom</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> Confirm the units of <code>avg_cpu_request_util</code>, then measure the distribution of CPU used versus requested for pods on <code>da8d</code> and <code>4d6f</code>.</li>
+        <li><code class="status">[]</code> If those pods really use their CPU, record that co-sizing cannot help and skip task 3.2. That is a publishable finding: the CPU bottleneck is real demand, not over-reservation.</li>
+      </ul>
+
+      <h4>3.2. CPU co-sizing what-if</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> Apply a CPU history rule that mirrors A1: per-workload high percentile of past hourly CPU use plus a margin, tuned on days 158&ndash;170.</li>
+        <li><code class="status">[]</code> Report usable capacity gained and CPU-short pod-hours, with GPU-shrunk-only and all-in-scope variants.</li>
+      </ul>
+
+      <h4>3.3. CPU-light placement bound</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> Compare new-job profiles from Phase 2 to quantify how far usable share moves toward the whole-GPU upper bound when new jobs need little CPU (ASI reports median CPU requests of 24 for CTR, 8 for BERT and 4 for Qwen).</li>
+      </ul>
+
+      <h4>3.4. Testing Strategy</h4>
+      <p>Synthetic cases for CPU shortfall, including zero history and utilization above 100% of request.</p>
+      <ul class="checklist">
+        <li><code class="status">[]</code> <code>uv run --with pytest --with pandas --with pyarrow --with numpy pytest code/capacity/tests/test_cpu_cosizing.py -q</code> &mdash; CPU history is leak-free and shortfalls are counted correctly.</li>
+      </ul>
+      <div class="loop">🔁 <strong>Do not exit this phase until every box above is checked.</strong> If any command fails, fix the cause and re-run &mdash; loop until all pass.</div>
+    </div>
+
+    <div class="phase">
+      <h3><code class="status">[]</code> Phase 4: Close the open result items</h3>
+      <p class="when">Target: by Nov 27, 2026</p>
+      <p>Resolve the inconsistencies a careful reader would find before freezing.</p>
+
+      <h4>4.1. Reconcile</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> Explain the 21.3% vs. 21.9% XGBoost gap by comparing configuration, seed and data, or state that it remains unexplained.</li>
+        <li><code class="status">[]</code> Reconcile the hybrid figures (18.8% and 4.8% in the report; 13.3% and 2.5% in the paper's table), then add or discard the report's values with a stated reason.</li>
+        <li><code class="status">[]</code> List the tests in the Holm family behind the hybrid's adjusted p of about 0.11 and state the family in the paper.</li>
+      </ul>
+
+      <h4>4.2. Re-run the hybrid on leak-free features</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> Extend <code>code/e9/run_gate.py</code> to evaluate the hybrid on <code>clean_p90</code>, and report matched-risk reclaim and worst-cluster U. Update H10 either way.</li>
+      </ul>
+
+      <h4>4.3. Testing Strategy</h4>
+      <p>Re-run the existing E9 pipeline to confirm the baseline is unchanged before reading hybrid results.</p>
+      <ul class="checklist">
+        <li><code class="status">[]</code> <code>ISAN_DATA_DIR=out_root/clean_p90 ISAN_OUT_DIR=results/clean_p90 ISAN_NJOBS=4 uv run --with xgboost --with scikit-learn --with pandas --with pyarrow python code/e9/run_gate.py</code> &mdash; clean_p90 still gives A1 20.8% and A3 21.0%, plus hybrid results (add other notebook dependencies as needed).</li>
+      </ul>
+      <div class="loop">🔁 <strong>Do not exit this phase until every box above is checked.</strong> If any command fails, fix the cause and re-run &mdash; loop until all pass.</div>
+    </div>
+
+    <div class="phase">
+      <h3><code class="status">[]</code> Phase 5: Freeze, reframe the paper and publish the benchmark</h3>
+      <p class="when">Freeze Nov 29, 2026; final write-up Dec 8, 2026</p>
+      <p>Build the paper around the waterfall.</p>
+
+      <h4>5.1. Reframe the paper</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> Add <code>sections/fragmentation.tex</code> and revise the capacity replay section in <code>sections/replay.tex</code>.</li>
+        <li><code class="status">[]</code> Rewrite the abstract and introduction around three contributions: the reclaimable-to-reusable waterfall, the leak-aware evaluation benchmark with a strong baseline, and the fragmentation effect of right-sizing.</li>
+        <li><code class="status">[]</code> Add the hardened scheduler comparison and the table of where a predictor plugs into KAI, HAMi, Volcano, Koordinator and VPA. This gives a concrete adoption path without claiming a deployment.</li>
+        <li><code class="status">[]</code> Add the waterfall figure to <code>scripts/make_figures.py</code>, loading the <code>dataviz</code> skill first.</li>
+        <li><code class="status">[]</code> Define the terms from task 2.2 once in the paper. Use &ldquo;insufficient CPU (FGD: stranded)&rdquo; for the CPU-limited loss and do not use &ldquo;stranded&rdquo; unqualified. Translate FGD and emulator output into these terms before comparing it with ASI Figure 13.</li>
+        <li><code class="status">[]</code> Update tiers in <code>sections/value.tex</code>, the SpotGPU discussion in <code>sections/comparison.tex</code>, gaps, limitations, and the new hypotheses in Table 22.</li>
+      </ul>
+
+      <h4>5.2. Publish the benchmark</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> Make the Athena bucket and database configurable through environment variables.</li>
+        <li><code class="status">[]</code> Offer the commit's HTTP-range fetch from the public trace ZIP as the route that needs no cloud account.</li>
+        <li><code class="status">[]</code> Add a benchmark section to <code>README.md</code>: splits, LOCO folds, the leak test, the go/no-go gate and how to score a new policy.</li>
+        <li><code class="status">[]</code> Commit code and cut a release, only with the authors' explicit go-ahead. No trace data is committed.</li>
+      </ul>
+
+      <h4>5.3. Testing Strategy</h4>
+      <p>The paper's required layout eval, a by-eye check of every figure and table page, and a check that paper values match generated results.</p>
+      <ul class="checklist">
+        <li><code class="status">[]</code> <code>uv run -q --with pymupdf python -W ignore scripts/check_pdf.py</code> &mdash; build, refs, overlap, bounds and overfull all pass.</li>
+        <li><code class="status">[]</code> <code>uv run --with pandas --with pyarrow --with numpy python code/capacity/reproduce.py --check code/capacity/baselines.json</code> &mdash; frozen results still reproduce.</li>
+        <li><code class="status">[]</code> <code>open build/screens</code> &mdash; every figure and table page was viewed and looks clean.</li>
+      </ul>
+      <div class="loop">🔁 <strong>Do not exit this phase until every box above is checked.</strong> If any command fails, fix the cause and re-run &mdash; loop until all pass.</div>
+    </div>
+
+    <div class="phase">
+      <h3><code class="status">[wip]</code> Phase 6: Emulator study of repacking (parallel track)</h3>
+      <p class="when">Starts Nov 10, 2026 with the feasibility spike; the experiment depends on the Phase 1 window extract; about 4 weeks in total</p>
+      <p>Tests the lever that requires moving pods. The commit's packing replay already suggests the ceiling is high: on seen clusters, 90&ndash;95% of each policy's reclaim survived packing when server and CPU limits were ignored. This phase asks how much survives once those limits are applied.</p>
+      <figure>
+        <!-- {{PHASE_IMAGE: cluster snapshot before and after repacking, fragments merging into whole GPUs}} -->
+        <figcaption>Repacking a snapshot shows how many fragments can be combined.</figcaption>
+      </figure>
+
+      <h4>6.1. Feasibility spike</h4>
+      <ul class="checklist">
+        <li><code class="status">[x]</code> Build <a href="https://github.com/hkust-adsl/kubernetes-scheduler-simulator">the FGD simulator</a> with Docker (Go is not installed locally; the project's image uses Go 1.20.4) and run its reference experiment. <em>Done with Go 1.27 (Homebrew) instead of Docker; upstream 8f3d641.</em></li>
+        <li><code class="status">[x]</code> Confirm in the code that the simulator's published method only fills the cluster and never removes pods, as the Stanford CS244C report describes it. The snapshot design below does not need departures, so it remains the default. If departures become necessary, evaluate the Stanford group's Gavel+FGD simulator. <em>Confirmed: a deletion path exists, but the published pod converter comments out deletion times and the generated input has none.</em></li>
+        <li><code class="status">[x]</code> Reproduce a published FGD result using <code>gpu_v2023/pods</code> and <code>gpu_v2023/nodes</code> from the project bucket before introducing ASI data, overlaying the curves on digitized figures from the FGD paper and reporting the relative error. <em>Done against the authors' <code>expected_results</code> instead of digitized figures: all five deterministic policies match exactly, and Random is within its seed spread. The build is patched for 16-GPU nodes and still matches.</em></li>
+        <li><code class="status">[x]</code> Measure the distribution of <code>server_gpu_count</code> in each of the 10 held-out clusters and flag those with uniform node sizes. The Stanford report found no measurable placement benefit on uniform nodes, so policy differences are not expected there. <em>Only <code>3f39b4b6</code> is uniform (every server has 2 GPUs); it is flagged.</em></li>
+      </ul>
+
+      <h4>6.2. Snapshot repacking experiment</h4>
+      <ul class="checklist">
+        <li><code class="status">[x]</code> Export pod and node lists for sampled cluster-hours (24 random hours plus top-decile spike hours per cluster) in the simulator's CSV format. <em>42 hours, 30 ASWs, 1,260 snapshots; see code/emulator/README.md.</em></li>
+        <li><code class="status">[x]</code> <strong>Validation second, after the FGD reproduction:</strong> with original requests, the emulator must land within 5 points of the trace's allocation and match the cause ordering in ASI Figure 13. <em>Allocation passes: with original requests, FGD leaves 22.0% usable against the trace's 21.1% (HP pods), with 0.03 failed pods per snapshot. Figure 13 cause ordering: partial match. Fractional residue is near zero, insufficient CPU dominates 1G8C and 8G128C, and multi-GPU shortfall dominates 8G64C, but insufficient CPU edges out shortfall at the 4-GPU profiles (<code>code/emulator/fig13_check.py</code>).</em></li>
+        <li><code class="status">[x]</code> Compare no-repack, FGD, best-fit, GPU packing, GPU clustering and random-fit, each with original and right-sized requests, with and without CPU co-sizing. <em>Stage 1 (FGD, all sizing variants) and stage 2 (six policies, original vs. oracle, three seeds) are done; see code/emulator/README.md.</em></li>
+        <li><code class="status">[f]</code> Use real trace arrival order as the primary placement order, and report ascending, descending and phased orders as sensitivity. The Stanford report found FGD lost to Clustering in 5 of 7 orders, including trace order. <em>Not possible as specified: a snapshot holds pods that are already running and the hourly table has no arrival order within the hour. Seeded random orders (3 seeds) are used instead.</em></li>
+        <li><code class="status">[wip]</code> Report additional jobs placed per target profile and the number of pod moves required as the cost of repacking. <em>Jobs that fit per profile are reported (<code>fit_&lt;g&gt;G&lt;c&gt;C</code>); pod moves are not computed yet.</em></li>
+      </ul>
+
+      <h4>6.3. Testing Strategy</h4>
+      <p>Round-trip export tests and a small hand-checked cluster. The emulator ignores ASW topology, which must be stated with any result.</p>
+      <ul class="checklist">
+        <li><code class="status">[x]</code> <code>uv run --with pytest --with pandas --with pyyaml --with pyarrow pytest code/emulator/tests -q</code> &mdash; exported totals match the source snapshot.</li>
+        <li><code class="status">[x]</code> <code>uv run --with pandas python code/emulator/validate_fgd.py</code> &mdash; the published FGD curves are reproduced, with relative error reported.</li>
+        <li><code class="status">[x]</code> <code>uv run --with pandas python code/emulator/analyze.py &lt;runs.csv&gt; &lt;hours.csv&gt; &lt;prefix&gt;</code> (replaces the planned validate.py; compare FGD:orig with trace_hp) &mdash; the emulator reproduces real allocation levels.</li>
+      </ul>
+      <div class="loop">🔁 <strong>Do not exit this phase until every box above is checked.</strong> If any command fails, fix the cause and re-run &mdash; loop until all pass.</div>
+    </div>
+
+    <div class="phase">
+      <h3><code class="status">[]</code> Phase 7: Shortfall-to-latency testbed (parallel track)</h3>
+      <p class="when">Design starts Nov 10, 2026; GPU rental waits for budget approval; cap of 100 GPU-hours</p>
+      <p>Addresses the largest inherent gap, the missing latency field. The results characterize these model classes; they do not validate Alibaba's anonymized production models.</p>
+
+      <h4>7.1. Measure</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> Before renting anything, inspect <code>genai_traces/queue_rt</code>, <code>qps</code> and <code>pod_gpu_duty_cycle</code>. They hold per-container time series, so they may give a small real-world check of response time against GPU load. They come from a different, older image-generation workload, so they cannot stand in for the testbed.</li>
+        <li><code class="status">[]</code> Rent one MIG-capable GPU, after approval of the budget.</li>
+        <li><code class="status">[]</code> If approved under Questionables, also enforce trace-sized slices through HAMi's <code>gpumem</code> and <code>gpucores</code>, because MIG's fixed profiles do not match sizes such as 0.5.</li>
+        <li><code class="status">[]</code> Serve the three model classes ASI compares: a Qwen-family LLM through vLLM, BERT and a CTR model.</li>
+        <li><code class="status">[]</code> Sweep slice size and open-loop load; record p50 and p99 latency, TTFT for the LLM, throughput and out-of-memory events.</li>
+      </ul>
+
+      <h4>7.2. Connect to the replay</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> Fit latency inflation as a function of compute shortfall, and treat memory shortfall as a failure.</li>
+        <li><code class="status">[]</code> Apply the curve to the replay's shortfall distribution to estimate SLO-violating pod-hours, with explicit uncertainty.</li>
+      </ul>
+
+      <h4>7.3. Testing Strategy</h4>
+      <p>Repeat measurements, and check that the load generator is not itself the bottleneck.</p>
+      <ul class="checklist">
+        <li><code class="status">[]</code> <code>uv run --with pandas python code/testbed/check_runs.py --min-repeats 3 --max-cv 0.15</code> &mdash; measurements are repeatable.</li>
+        <li><code class="status">[]</code> <code>uv run --with pandas python code/testbed/budget.py --max-gpu-hours 100</code> &mdash; spending stayed within the cap.</li>
+      </ul>
+      <div class="loop">🔁 <strong>Do not exit this phase until every box above is checked.</strong> If any command fails, fix the cause and re-run &mdash; loop until all pass.</div>
+    </div>
+
+    <div class="phase">
+      <h3><code class="status">[]</code> Phase 8: Natural experiment for placement risk (parallel track)</h3>
+      <p class="when">Starts once D2 is available (Phase 0); independent of Phases 1&ndash;5</p>
+      <p>Provides evidence on the A+B question without extrapolating Model B. Results are suggestive, not causal, because operators choose slice sizes deliberately.</p>
+
+      <h4>8.1. Identify and estimate</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> Find workloads with pods at two or more slice sizes, and compute a minimum detectable effect before estimating anything (fractional pods are only 0.3&ndash;3.7% of each cluster).</li>
+        <li><code class="status">[]</code> Fit a fixed-effects model of readiness failure and schedule delay on slice size, with workload &times; cluster &times; GPU-type effects and workload-clustered standard errors.</li>
+        <li><code class="status">[]</code> Add an event study around workload size changes, including a pre-trend placebo.</li>
+      </ul>
+
+      <h4>8.2. Testing Strategy</h4>
+      <p>Simulated data with a known effect, then a placebo on real data.</p>
+      <ul class="checklist">
+        <li><code class="status">[]</code> <code>uv run --with pytest --with pandas --with statsmodels pytest code/natural_experiment/tests -q</code> &mdash; the estimator recovers a known simulated effect.</li>
+        <li><code class="status">[]</code> <code>uv run --with pandas --with statsmodels python code/natural_experiment/placebo.py</code> &mdash; pre-trends are consistent with zero.</li>
+      </ul>
+      <div class="loop">🔁 <strong>Do not exit this phase until every box above is checked.</strong> If any command fails, fix the cause and re-run &mdash; loop until all pass.</div>
+    </div>
+
+    <div class="phase">
+      <h3><code class="status">[]</code> Phase 9: Online conformal coverage (parallel track)</h3>
+      <p class="when">Starts once D1 is rebuilt (Phase 0); independent of Phases 1&ndash;5</p>
+      <p>Addresses the coverage gap, which static per-cluster recalibration did not close (92&ndash;93% against a 95% target).</p>
+
+      <h4>9.1. Implement and compare</h4>
+      <ul class="checklist">
+        <li><code class="status">[]</code> Implement adaptive conformal updates per cluster and per model type &times; cold/warm group.</li>
+        <li><code class="status">[]</code> Apply the leak lesson: a pod's label may update margins only after it has finished and its 24-hour requirement is met.</li>
+        <li><code class="status">[]</code> Compare with static and per-cluster conformal. Proposed rule: mean coverage within 1 point of 95%, better worst-cluster coverage, and reclaim within 1 point of static.</li>
+      </ul>
+
+      <h4>9.2. Testing Strategy</h4>
+      <p>Synthetic drift with a known coverage target, and a leakage test for delayed feedback.</p>
+      <ul class="checklist">
+        <li><code class="status">[]</code> <code>uv run --with pytest --with numpy --with pandas pytest code/conformal/tests -q</code> &mdash; coverage tracks the target under drift, and no label is used before it is available.</li>
+      </ul>
+      <div class="loop">🔁 <strong>Do not exit this phase until every box above is checked.</strong> If any command fails, fix the cause and re-run &mdash; loop until all pass.</div>
+    </div>
+  </section>
+
+  <!-- ===== GLOBAL VALIDATION ===== -->
+  <section id="validation">
+    <h2>Validation Commands</h2>
+    <p>Execute these commands to validate the entire plan is complete:</p>
+    <ul class="checklist">
+      <li><code class="status">[]</code> <code>uv run --with pytest --with hypothesis --with pandas --with pyarrow --with numpy pytest code/capacity/tests -q</code> &mdash; capacity logic, conservation and leakage tests pass.</li>
+      <li><code class="status">[]</code> <code>uv run --with pandas --with pyarrow --with numpy python code/capacity/reproduce.py --check code/capacity/baselines.json</code> &mdash; reported numbers reproduce from committed code.</li>
+      <li><code class="status">[]</code> <code>uv run -q --with pymupdf python -W ignore scripts/check_pdf.py</code> &mdash; the final PDF passes all layout evals.</li>
+      <li><code class="status">[]</code> <code>git ls-files code/capacity | wc -l</code> &mdash; analysis code is tracked (non-zero).</li>
+      <li><code class="status">[]</code> <code>! git ls-files | grep -E "\.parquet$"</code> &mdash; no trace data is committed.</li>
+    </ul>
+    <div class="loop">🔁 <strong>The plan is not complete until every box is checked and every command passes. If for some reason a step is not possible to complete, mark it with [f] and move on if possible.</strong></div>
+  </section>
+
+  <!-- ===== QUESTIONABLES ===== -->
+  <section id="questionables">
+    <h2>Questionables</h2>
+    <figure>
+      <!-- {{QUESTIONABLES_IMAGE: fork in a path labelled decision, minimal}} -->
+      <figcaption>Open decisions to settle before results are generated.</figcaption>
+    </figure>
+
+    <details open>
+      <summary>Are these the right thresholds for the new hypotheses?</summary>
+      <p class="qa-answer">Proposed, and needed by Nov 15, because setting them after seeing results would undercut the method. All use A1 with the 6-hour fallback, ideal sharing and the cluster-median job, on days 171&ndash;183.</p>
+      <div class="table-wrap"><table>
+        <tr><th>ID</th><th>Hypothesis</th><th>Proposed rule</th></tr>
+        <tr><td>H13</td><td>Fleet-wide shrinking makes more freed capacity usable.</td><td>S1 usable share is at least 7.6% (twice the test-only 3.8%).</td></tr>
+        <tr><td>H14</td><td>Right-sizing brings back fractional fragmentation.</td><td>Fractional residue is at least 25% of unallocatable idle GPU capacity at S1, and at least 3 times the unshrunk share.</td></tr>
+        <tr><td>H15</td><td>CPU co-sizing unlocks usable capacity.</td><td>Usable share at least triples, with CPU-short pod-hours at or below 1%.</td></tr>
+        <tr><td>H16</td><td>VPA-style sizing plus a learned cold-start model beats either alone on unseen clusters.</td><td>Higher reclaim at matched 5% risk than both VPA and A1 in at least 7 of 10 clusters, Holm-adjusted Wilcoxon p &le; 0.05.</td></tr>
+      </table></div>
+    </details>
+    <details open>
+      <summary>Can the parallel track run without endangering the Nov 29 freeze?</summary>
+      <p class="qa-answer">Only with a firm rule. Phases 6&ndash;9 never take time from Phases 0&ndash;5, and anything not finished and validated by Nov 26 is described as follow-on work. With two people and 20 days, I recommend this start order: Phase 9 and Phase 8 on existing data, then the Phase 6 spike, then Phase 7 once funded. Please confirm who owns each track.</p>
+    </details>
+    <details open>
+      <summary>Should the paper include the scheduler replay at all before the freeze?</summary>
+      <p class="qa-answer">Recommended, but only after Phase 1B. If it isn't finished in time, include the schedulers table and label the numeric results preliminary, with their window and limits stated. Do not use the 16.0% and 18.6% headlines as they stand.</p>
+    </details>
+    <details>
+      <summary>Is a small real deployment now in scope?</summary>
+      <p class="qa-answer">It may be. The commit identifies specific places where a predictor could act, such as a webhook writing HAMi's <code>gpumem</code> and <code>gpucores</code>. A single-node Kubernetes setup on the rented GPU would demonstrate actuation, but not production-scale benefit, and HAMi's software isolation differs from hardware partitioning. The plan keeps this optional until you decide.</p>
+    </details>
+    <details>
+      <summary>What if Sudip's replay code is unavailable?</summary>
+      <p class="qa-answer">The plan assumes it can be obtained. The fallback is an A1-only re-implementation from the written method, with the A3 comparisons carried over from the report and labelled as not re-run. Cutoff: Nov 12.</p>
+    </details>
+    <details>
+      <summary>What counts as &ldquo;all eligible pods&rdquo;?</summary>
+      <p class="qa-answer">Default primary scope is S1. S2 is reported as sensitivity because short-lived pods have no <code>Y_MVF</code> and the fallback rule behaves differently for them. In S1, margins fitted on days 130&ndash;157 are applied to some earlier-admitted pods, a small look-ahead, so S1 is framed as an as-if-deployed steady state.</p>
+    </details>
+    <details>
+      <summary>Could SpotGPU make the opportunity much smaller?</summary>
+      <p class="qa-answer">Yes, and this is the largest threat to the framing. ASI's SpotGPU already lends idle reserved capacity to low-priority jobs. If much of the freed capacity is already lent, right-sizing's marginal value shrinks and the headline needs to be restated. Task 2.5 measures it. A large overlap would still be an honest and useful result.</p>
+    </details>
+    <details>
+      <summary>Should CPU co-sizing happen before the freeze?</summary>
+      <p class="qa-answer">Recommended, if Phase 2 is on schedule by Nov 20. It needs no emulator and could change the main message from a diagnosis to a measured remedy. It is the first thing to drop if time runs short.</p>
+    </details>
+    <details>
+      <summary>Which new-job profile should be primary?</summary>
+      <p class="qa-answer">Keep the cluster median for continuity with H12, and report ASI's request grid alongside it. The median comes from a CPU-heavy population and may overstate how much CPU a typical new job needs.</p>
+    </details>
+    <details>
+      <summary>Is &ldquo;pre-registered&rdquo; the right word for the new tests?</summary>
+      <p class="qa-answer">No. The test days have been used before, and no later days remain in the trace. The plan uses &ldquo;rule set before running&rdquo;, as the paper does for H11 and H12.</p>
+    </details>
+    <details>
+      <summary>What is the final paper's identity and length?</summary>
+      <p class="qa-answer">The title still says &ldquo;A Research Proposal&rdquo; and <code>main.tex</code> notes a later compression step. The course's format and page limit are not in the repository, so please confirm them. The default is to retitle it as a study and keep the long version as an appendix or companion.</p>
+    </details>
+    <details>
+      <summary>Does the emulator represent ASI well enough?</summary>
+      <p class="qa-answer">Only for a narrow claim: how much capacity repacking recovers under GPU and CPU limits, relative to not repacking. It does not model ASW topology, SpotGPU lending and preemption, ASI's production policy or the cost of moving pods, so it cannot estimate ASI's actual capacity gain. The Stanford report does not settle this, because it uses the v2023 trace rather than ASI. A failed validation gate should be reported rather than worked around.</p>
+    </details>
+    <details>
+      <summary>Is the testbed budget approved, and who pays?</summary>
+      <p class="qa-answer">Not yet. At the paper's illustrative $3.43&ndash;$3.90 per GPU-hour, 100 GPU-hours is about $340&ndash;$390 before storage and setup. It needs a funding decision before Phase 7.</p>
+    </details>
+    <details>
+      <summary>Where should this be submitted after the course, and with whom?</summary>
+      <p class="qa-answer">Undecided, and for Saksham, Sudip and Dr. Zhao to settle. A workshop paper is plausible after Phases 1&ndash;3. A stronger systems submission needs at least the emulator and testbed. Authorship and data-sharing expectations should be agreed before Phase 6.</p>
+    </details>
+    <details>
+      <summary>Is the novelty claim safe?</summary>
+      <p class="qa-answer">Not yet established. It rests on a small number of searches. Phase 0 checks it properly, and the paper should claim what was measured rather than being first.</p>
+    </details>
+  </section>
+
+  <!-- ===== NOTES ===== -->
+  <section id="notes">
+    <h2>Notes</h2>
+
+    <h3>Schedule at a glance</h3>
+    <div class="table-wrap"><table>
+      <tr><th>Dates (2026)</th><th>Phase</th><th>Outcome</th></tr>
+      <tr><td>Nov 9&ndash;12</td><td>0</td><td>Access restored, novelty checked</td></tr>
+      <tr><td>Nov 11&ndash;15</td><td>1</td><td>Replay in the repository and reproduced</td></tr>
+      <tr><td>Nov 12&ndash;20</td><td>1B</td><td>Scheduler replay hardened on the full splits</td></tr>
+      <tr><td>Nov 15&ndash;24</td><td>2</td><td>Waterfall and fleet-wide results</td></tr>
+      <tr><td>Nov 20&ndash;26</td><td>3</td><td>In-place lever estimates (optional)</td></tr>
+      <tr><td>By Nov 27</td><td>4</td><td>Open result items closed</td></tr>
+      <tr><td>Nov 29 / Dec 8</td><td>5</td><td>Results freeze / final write-up</td></tr>
+      <tr><td>From Nov 10, in parallel</td><td>6&ndash;9</td><td>Emulator, testbed, natural experiment, conformal; validated results by Nov 26 enter the paper</td></tr>
+    </table></div>
+
+    <h3>Scheduler replay (commit 4a75959): what it changes</h3>
+    <p>Reviewed from its README, results and code on Nov 9. It covers 22 days (90&ndash;111), with test days 104&ndash;109 and 10,160 test pods.</p>
+    <div class="table-wrap"><table>
+      <tr><th>Finding</th><th>Use in this plan</th></tr>
+      <tr><td>All six schedulers size GPUs from what the user declares. HAMi and Volcano reserve 100% of GPU memory when it is not declared, and Koordinator's usage estimator has no GPU case.</td><td>Strong framing: the real incumbent reclaims nothing, and a predictor has specific places to plug in. Add after source cross-checks.</td></tr>
+      <tr><td>Fixed factors fail: 85% of a whole GPU snaps back to 1.0 on the slice ladder, so it reclaims about 0%.</td><td>Keep. It is a mechanical result and also shows why per-pod sizing matters.</td></tr>
+      <tr><td>Reclaim mostly survives idealized packing: 90&ndash;95% across the VPA, A1, A3, hybrid and combined policies.</td><td>The optimistic end of the bracket against the 3.8% capacity replay. The gap between them isolates the cost of server, CPU and placement limits.</td></tr>
+      <tr><td>Shared-GPU overload: A3 3.1%, VPA 8.3%, A1 12.2%.</td><td>Add the metric; treat the values as seen-cluster and preliminary.</td></tr>
+      <tr><td>On unseen clusters, A1 reclaims 6.2% and A3 2.4%.</td><td>Consistent with the paper's NO-GO.</td></tr>
+    </table></div>
+    <div class="callout">
+      <p><strong>Why the headline numbers are not yet usable:</strong></p>
+      <ul>
+        <li>The 16.0%, 14.6% and 18.6% values are on clusters seen in training, using a margin tuned on the test set, with no uncertainty estimate. A 1.4-point gap over 10,160 pooled pods does not establish that A3 beats VPA.</li>
+        <li>VPA and VPA + A3 were not run on unseen clusters. A3 is the part known not to transfer, so the 18.6% could fall substantially there.</li>
+        <li>Eligibility excludes left-censored pods but not right-censored ones, so pods still running at day 111 have truncated labels and hours. The Nov 8 finding that pods use less early in life suggests this may understate risk.</li>
+        <li>The window is short (30% of test pods warm, against 39% in the paper's test set) and uses a 20-size ladder derived from the window rather than the paper's 27 sizes. The README itself says the ranking, not the level, is the result.</li>
+        <li>VPA sees live sibling samples while A1 sees finished pods only, so the comparison is partly about available information.</li>
+        <li>Its history logic does follow the finished-before-admission rule, and VPA samples stop before admission. I found no leak of that kind.</li>
+      </ul>
+    </div>
+
+    <h3>What was verified while writing this plan</h3>
+    <ul>
+      <li>The ASI paper's text says fractional-GPU fragmentation &ldquo;is now negligible, as GPU sharing is rarely used&rdquo;, and lists fractional, stranded, insufficient CPU and network topology as causes. Figure 13 provides the request grid used in Phase 2.</li>
+      <li><code>pod_hourly</code> has the CPU request, CPU utilization, priority and server capacity fields the plan needs. It has no GPU index and no ASW field.</li>
+      <li>At plan creation, the AWS session had expired, D1 and D2 parquet files were not found under <code>~/school</code>, Go was not installed (Docker is), and no <code>.env</code> with <code>OPENAI_API_KEY</code> exists, so images remain placeholders.</li>
+      <li>The FGD simulator is Apache-2.0, written in Go, and run with <code>bin/simon apply</code>. Its trace columns were seen only through a mirrored README, so confirm them in task 6.1.</li>
+    </ul>
+
+    <h3>Cost</h3>
+    <p>Athena costs are expected to be under $5 in total. Prior analyses cost $0.27 and $1.46, and the new window extract covers about 15% of the 328 GiB table, before columnar savings. The only material spend is the Phase 7 testbed.</p>
+
+    <h3>Alternatives considered</h3>
+    <ul>
+      <li><strong>Building a live resizing system.</strong> Rejected at production scale, since there is no production cluster. A single-node demonstration through an open-source scheduler remains a separate option under Questionables, and it would show feasibility only.</li>
+      <li><strong>CausalSim-style counterfactual simulation.</strong> Rejected for now: it learns from randomized trials, and the trace contains none.</li>
+      <li><strong>More GPU predictors.</strong> Rejected: the NO-GO and H12 both indicate prediction is not the binding constraint.</li>
+      <li><strong>Carbon framing.</strong> Deferred: with so little capacity usable today, a carbon estimate would be mostly speculative.</li>
+    </ul>
+
+    <h3>Risks</h3>
+    <ul>
+      <li><strong>The fix does not move the number.</strong> If H13 fails, the finding is stronger evidence that fragments remain unusable at scale, and the paper remains valid.</li>
+      <li><strong>Schedule.</strong> Phase 1 depends on another person's materials. Phases 3 and 4.2 are the first to be cut.</li>
+      <li><strong>Hourly data.</strong> Sub-hour peaks are invisible in every replay, and CPU is observed only as an hourly average.</li>
+    </ul>
+
+    <h3>References</h3>
+    <ul>
+      <li><a href="https://www.usenix.org/conference/osdi26/presentation/li-suyi">ASI: Heterogeneity at Hyperscale (OSDI '26)</a></li>
+      <li><a href="https://home.cse.ust.hk/~weiwa/papers/fgd-atc23.pdf">Fragmentation Gradient Descent (ATC '23)</a> and its <a href="https://github.com/hkust-adsl/kubernetes-scheduler-simulator">simulator</a></li>
+      <li><a href="https://arxiv.org/pdf/2609.18519">COMPASS-ABS (arXiv 2609.18519)</a></li>
+      <li><a href="https://www.scs.stanford.edu/26wi-cs244c/proj/pack_smart.pdf">Stanford CS244C FGD project</a></li>
+      <li><a href="https://www.usenix.org/conference/nsdi23/presentation/alomar">CausalSim (NSDI '23)</a></li>
+      <li><a href="https://arxiv.org/html/2508.20274v1">Predictable LLM Serving on GPU Clusters</a></li>
+      <li><a href="https://www.arxiv.org/abs/2511.04275">Online Conformal Inference with Retrospective Adjustment</a></li>
+    </ul>
+  </section>
+
+  <!-- ===== AMENDMENTS ===== -->
+  <section id="amendments">
+    <h2>Amendments</h2>
+    <details>
+      <summary>2026-11-09T19:01:54Z &mdash; Parallel track and scheduler replay</summary>
+      <p>Moved Phases 6&ndash;9 from after the course to a parallel track starting now, with a rule protecting the Nov 29 freeze. Added Phase 1B after reviewing commit 4a75959 and recorded what can and cannot be used from it. Added the packing bracket, the shared-GPU overload metric, hypothesis H16, and three open decisions. Updated data access after the AWS login, including the S3 datasets found in the project bucket. No analysis code was written as part of this amendment.</p>
+    </details>
+    <details>
+      <summary>2026-11-09T19:09:27Z &mdash; Emulator design informed by the Stanford report</summary>
+      <p>After reading the Stanford CS244C report: real trace order is now the primary placement order with sensitivity orders, GPU clustering joins the compared policies, node-size uniformity is measured per cluster, validation reproduces FGD on v2023 before ASI, and the simulator's fill-only method is treated as the expected behaviour to confirm. The emulator Questionable now states the narrow claim the emulator can support.</p>
+    </details>
+    <details>
+      <summary>2026-11-09T19:12:34Z &mdash; Unambiguous fragmentation terms</summary>
+      <p>Adopted &ldquo;insufficient CPU&rdquo; (ASI's term, equivalent to FGD's &ldquo;stranded&rdquo;) for CPU-limited loss, and &ldquo;multi-GPU shortfall&rdquo; for ASI's &ldquo;stranded&rdquo; so the word is never used unqualified. Added a term table to task 2.2, a paper task to Phase 5, and renamed the classifier outputs in the pseudo-code.</p>
+    </details>
+    <details>
+      <summary>2026-11-13T06:12:35Z &mdash; Phase 6 stage 1 results and two findings</summary>
+      <p>Phase 6 is built and running. The FGD simulator reproduces the authors' results exactly. ASI snapshots (start-of-hour, one ASW, HP pods only) replay with almost no failures, and the emulator's leftover capacity is within 1 point of the trace's own placement. Stage 1 (FGD, 720 random-hour snapshots): A1 adds 0.64 points of usable whole GPUs (95% CI 0.17&ndash;1.14). The oracle ceiling adds 9.5 points, or 18.3 points with CPU co-sizing, so without CPU co-sizing about 40% of freed whole GPUs are stuck behind insufficient CPU.</p>
+      <p>Finding for the paper: phase2 H12 counts every pod, including preemptible LP and best-effort CPU-only pods. On the same snapshots that accounting leaves 2.8% of GPUs usable, while counting only HP pods leaves 21%. The 3.8&ndash;4% reusable figure is therefore a lower bound that depends on how preemptible pods are treated, and the paper should report both. Deviation: trace arrival order is unavailable for snapshots, so seeded random orders are used.</p>
+    </details>
+    <details>
+      <summary>2026-11-13T08:34:39Z &mdash; Phase 6 stage 2: placement policy comparison</summary>
+      <p>Stage 2 compared six policies on 240 snapshots with 3 seeds each. GpuClustering and Random leave about 15.6% of GPU demand unplaced, so policies are compared on net usable capacity (usable whole GPUs minus unplaced demand). With original requests, all non-random policies land within 0.6 points of each other (22.4&ndash;22.9%), and perfect sizing adds 8&ndash;10 points under each of them. Sizing, not policy, decides how much capacity can be reused. FGD is the only policy that places every pod and still leaves the most usable capacity. On the uniform cluster 3f39b4b6, FGD still leads, which differs from the Stanford report; this is a hint only.</p>
+    </details>
+  </section>
+
+</main>
+</body>
+</html>

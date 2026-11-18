@@ -1,0 +1,17 @@
+kind,policy,variant,metric,gain_pts,ci_lo,ci_hi,asws,cl_ci_lo,cl_ci_hi,clusters
+random,FGD,a1,whole_free_cpu8,0.642,0.169,1.142,30,0.053,1.377,10
+random,FGD,a1,whole_free_cpu16,0.496,0.142,0.871,30,0.05,1.11,10
+random,FGD,a1cpu,whole_free_cpu8,0.744,0.194,1.326,30,0.061,1.605,10
+random,FGD,a1cpu,whole_free_cpu16,0.603,0.181,1.063,30,0.066,1.383,10
+random,FGD,oracle,whole_free_cpu8,9.461,7.462,13.216,30,7.839,19.832,10
+random,FGD,oracle,whole_free_cpu16,7.122,5.142,11.178,30,5.35,17.381,10
+random,FGD,oraclecpu,whole_free_cpu8,18.319,13.748,24.5,30,12.568,38.193,10
+random,FGD,oraclecpu,whole_free_cpu16,15.184,11.521,21.033,30,10.594,38.55,10
+spike,FGD,a1,whole_free_cpu8,0.558,0.128,1.045,30,0.045,1.188,10
+spike,FGD,a1,whole_free_cpu16,0.432,0.112,0.807,30,0.044,0.956,10
+spike,FGD,a1cpu,whole_free_cpu8,0.65,0.153,1.205,30,0.051,1.392,10
+spike,FGD,a1cpu,whole_free_cpu16,0.52,0.15,0.958,30,0.056,1.166,10
+spike,FGD,oracle,whole_free_cpu8,9.209,7.437,12.385,30,7.776,20.091,10
+spike,FGD,oracle,whole_free_cpu16,6.991,5.186,10.595,30,5.312,17.761,10
+spike,FGD,oraclecpu,whole_free_cpu8,17.467,13.197,23.386,30,12.141,36.801,10
+spike,FGD,oraclecpu,whole_free_cpu16,14.407,11.012,19.456,30,10.159,36.876,10

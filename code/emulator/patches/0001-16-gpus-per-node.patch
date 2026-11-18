@@ -1,0 +1,45 @@
+diff --git a/pkg/simulator/export.go b/pkg/simulator/export.go
+index 6bb3f63..6918c47 100644
+--- a/pkg/simulator/export.go
++++ b/pkg/simulator/export.go
+@@ -219,16 +219,11 @@ func (sim *Simulator) ExportNodeSnapshotInCSV(filePath string) {
+ 	header := []string{
+ 		"name", "ip", "model", "cpu", "gpu", "memory_mib", "gpu_mem_mib_each", "num_pod",
+ 		"cpu_milli_left", "memory_mib_left",
+-		"gpu_milli_left_0", "gpu_mem_mib_left_0",
+-		"gpu_milli_left_1", "gpu_mem_mib_left_1",
+-		"gpu_milli_left_2", "gpu_mem_mib_left_2",
+-		"gpu_milli_left_3", "gpu_mem_mib_left_3",
+-		"gpu_milli_left_4", "gpu_mem_mib_left_4",
+-		"gpu_milli_left_5", "gpu_mem_mib_left_5",
+-		"gpu_milli_left_6", "gpu_mem_mib_left_6",
+-		"gpu_milli_left_7", "gpu_mem_mib_left_7",
+-		"gpu_milli_left", "gpu_mem_mib_left",
+ 	}
++	for i := 0; i < simontype.MaxNumGpuPerNode; i++ {
++		header = append(header, fmt.Sprintf("gpu_milli_left_%d", i), fmt.Sprintf("gpu_mem_mib_left_%d", i))
++	}
++	header = append(header, "gpu_milli_left", "gpu_mem_mib_left")
+ 	err = writer.Write(header)
+ 	if err != nil {
+ 		return
+@@ -282,7 +277,7 @@ func (sim *Simulator) ExportNodeSnapshotInCSV(filePath string) {
+ 
+ 		var gpuMilliLeftTotal int64
+ 		var gpuMemMibLeftTotal int64
+-		for i := 0; i < 8; i++ {
++		for i := 0; i < simontype.MaxNumGpuPerNode; i++ {
+ 			// gpu_milli_left_$i
+ 			var gpuMilliLeft int64
+ 			if i < len(nodeRes.MilliGpuLeftList) {
+diff --git a/pkg/type/const.go b/pkg/type/const.go
+index 61f5256..c5ff71d 100644
+--- a/pkg/type/const.go
++++ b/pkg/type/const.go
+@@ -48,5 +48,5 @@ const (
+ 	SeparateSymbol        = "-"
+ 	WorkLoadHashCodeDigit = 10
+ 	PodHashCodeDigit      = 5
+-	MaxNumGpuPerNode      = 8
++	MaxNumGpuPerNode      = 16 // was 8; ASI has 16-GPU servers
+ )
