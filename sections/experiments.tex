@@ -1,7 +1,7 @@
 \section{Proposed Experiments and Feature Engineering}
 \label{sec:experiments}
 
-Every experiment below was designed with a hypothesis and a decision rule fixed in advance. E6, E7 and E8 have since been run (results in \cref{sec:followup}), and E9 in \cref{sec:e9}; the rest are \status{proposed} and not yet run. All keep the same splits, LOCO protocol, conformal margins and metrics as \cref{sec:method}, so results remain comparable to \cref{tab:modelA,tab:modelB}. Each is tagged by the model it informs: \textbf{A} (allocation), \textbf{B} (readiness/failure), or \textbf{A+B} (policy).
+Every experiment below was designed with a hypothesis and a decision rule. E6, E7 and E8 have since been run (results in \cref{sec:followup}), and E9 in \cref{sec:e9}. Parts of E1--E4 were run in exploratory form after the test days had been seen, with the rules for H6 and H7 restated before running (\cref{sec:fallback,sec:mixing}), so their cards below record the original design and their status says what was actually done. E5 and E10 are \status{proposed} and not yet run. All keep the same splits, LOCO protocol, conformal margins and metrics as \cref{sec:method}, so results remain comparable to \cref{tab:modelA,tab:modelB}. Each is tagged by the model it informs: \textbf{A} (allocation), \textbf{B} (readiness/failure), or \textbf{A+B} (policy).
 
 \subsection{New feature families}
 
@@ -37,28 +37,28 @@ Memory headroom & Max / P99 of GPU-memory use (vs.\ P90 of utilization) to separ
 \textbf{Feasibility.} #7
 \end{tcolorbox}}
 
-\expcard{E1. Workload mixing: recommendation grouped vs.\ mixed with GenAI}{A, B}
+\expcard{E1. Workload mixing, rec vs.\ GenAI (\status{partly done}: (i) only, \cref{sec:mixing})}{A, B}
 {(H5) Rec pods admitted to servers whose GPUs are predominantly held by other rec pods have lower and more predictable MVF than rec pods co-located with GenAI or training. Co-location features reduce A's pinball loss and raise B's PR-AUC.}
 {(i) Stratify D1 rec pods into \emph{rec-homogeneous} ($\ge$80\% of the server's allocated GPUs are rec), \emph{GenAI-mixed} ($\ge$20\% GenAI), and \emph{other-mixed}. Compare MVF distributions, within-workload variance, and A1 pinball loss by stratum. (ii) Add the server/ASW mix features of \cref{tab:features} to A3 and B3; ablate. (iii) Packing what-if: bin-pack each test day's predicted slices under two placement rules (\emph{segregate}: rec with rec, GenAI with GenAI; \emph{interleave}: first-fit across both) and count GPUs freed.}
 {Mix features are kept if they improve pinball loss in $\ge$7 of 10 LOCO clusters (Wilcoxon $p\le0.05$) without raising $U$, or improve B's PR-AUC by $\ge$0.02. The packing what-if is reported as an upper bound.}
 {Industry schedulers co-locate latency-critical and best-effort work deliberately (\cref{sec:industry}). If mixing raises variance, segregation is a free policy lever; if it does not, operators can interleave and pack tighter.}
 {Addressable with the trace's per-server allocation tables. Caveat: in ASI most pods hold whole GPUs, so ``mixing'' is mostly \emph{host-level} (CPU, PCIe, NIC) rather than SM-level sharing. The trace has no PCIe or NUMA fields, so host-level effects cannot be attributed to either (\cref{sec:hosttopo}). The result says nothing about true MPS/MIG interference.}
 
-\expcard{E2. Workload--pod--GPU compatibility}{B (A)}
+\expcard{E2. Workload--GPU compatibility (\status{done} for B, \cref{sec:mixing})}{B (A)}
 {(H6) Readiness failure is driven by the interaction (workload type $\times$ GPU type $\times$ requested size), especially requests for scarce GPU types, more than by any main effect. GPU-normalized need makes MVF transfer better across clusters with different hardware mixes.}
 {Build a compatibility matrix of failure rate by cell with empirical-Bayes smoothing; add cell rate, memory-fit ratio and scarcity to B; add throughput-normalized need as an alternative A target.}
 {B: unseen-cluster PR-AUC and ECE vs.\ \cref{tab:modelB}. A: unseen-cluster coverage closer to 95\% than 92.2\%.}
 {Mirrors how commercial schedulers filter by node affinity, GPU product labels and MIG profiles before scoring.}
 {Addressable. Risk: sparse cells; smoothing and a minimum-count rule are mandatory.}
 
-\expcard{E3. Production vs.\ non-production behaviour}{A, B}
+\expcard{E3. Production vs.\ non-production (\status{partly done}, \cref{sec:mixing})}{A, B}
 {(H7) Production (high-priority) pods have tighter, more persistent demand, lower failure, and a smaller reclaimable share; low-priority pods fail more when placed on servers with many production pods.}
 {Segment by priority class. Report MVF median/IQR, A1 vs.\ A3 reclaim at $U=5\%$, and B failure rate per segment. Fit per-segment conformal margins. Interaction test for (pod priority $\times$ server production share) in B.}
 {Report per-segment $R$ at matched $U$; the interaction is kept if its permutation importance is in B's top 10 on unseen clusters.}
 {Production requirements differ: a GenAI chat endpoint and a best-effort batch scorer should not carry the same safety budget (feeds E5).}
 {Addressable: priority classes are in the trace. Limitation: priority is a proxy for ``production''; no explicit SLO tier.}
 
-\expcard{E4. Runtime patterns and a second decision point}{A}
+\expcard{E4. Runtime patterns, second decision point (\status{reframed}, \cref{sec:fallback})}{A}
 {(H8) For cold-start pods (61--68\% of the population), the first $k\in\{1,6,24\}$ hours of telemetry predict MVF far better than admission-time features, so a \emph{resize-after-warm-up} policy reclaims more than admission-time sizing.}
 {Add runtime-shape features (\cref{tab:features}) computed on $[t_0, t_0+k]$; predict MVF over the remaining lifetime. Compare reclaim at $U=5\%$ for admission-only vs.\ $k$-hour resize, charging the first $k$ hours at the original size.}
 {Net GPU-hours reclaimed vs.\ admission-only A3, by $k$.}
@@ -119,10 +119,10 @@ ID & Topic & Model & Gap type & Priority \\
 \midrule
 E9 & Leakage-free history, P99 labels (done) & A & Modelling & 1 \\
 E6 & Hybrid policy (done) & A & Modelling & 1 \\
-E1 & Workload mixing (rec vs.\ GenAI) & A, B & Feature eng. & 2 \\
-E2 & Workload--GPU compatibility & B & Feature eng. & 2 \\
-E3 & Production vs.\ non-production & A, B & Feature eng. & 2 \\
-E4 & Runtime patterns / resize & A & Feature eng. & 2 \\
+E1 & Workload mixing (partly done) & A, B & Feature eng. & 2 \\
+E2 & Workload--GPU compatibility (done for B) & B & Feature eng. & 2 \\
+E3 & Production vs.\ non-production (partly done) & A, B & Feature eng. & 2 \\
+E4 & Runtime patterns / resize (reframed, done) & A & Feature eng. & 2 \\
 E8 & Per-cluster recalibration (done) & A, B & Modelling & 2 \\
 E5 & Segment-aware safety budgets & A+B & Modelling & 3 \\
 E7 & Finer slices (what-if, done) & A & Inherent (bounded) & 3 \\

@@ -1,14 +1,15 @@
-\documentclass[11pt]{article}
+\documentclass[10pt]{article}
 
 % ---------------------------------------------------------------------------
-% ISAN 3392 research proposal: Predictive GPU Right-Sizing
+% Predictive GPU Right-Sizing: conference-style paper.
 % Build:  tectonic main.tex      (figures: python scripts/make_figures.py)
-% This is the long "research-trail" version. Do not compress yet.
+% Evaluation structure follows DomainBed (ICLR 2021) and WILDS (ICML 2021).
+% The full 42-page research trail is preserved in main_research_trail.tex.
 % ---------------------------------------------------------------------------
 
-\usepackage[margin=1in]{geometry}
+\usepackage[letterpaper,margin=1.2in]{geometry}
 \usepackage[T1]{fontenc}
-\usepackage{lmodern}
+\usepackage{mathptmx}
 \usepackage{microtype}
 \usepackage{amsmath,amssymb}
 \usepackage{graphicx}
@@ -16,306 +17,188 @@
 \usepackage{tabularx}
 \usepackage{array}
 \usepackage{longtable}
-\usepackage{multirow}
 \usepackage[table]{xcolor}
 \usepackage{enumitem}
 \usepackage{caption}
-\usepackage{subcaption}
-\usepackage{tikz}
-\usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,calc}
-\usepackage{pgfgantt}
-\usepackage{tcolorbox}
-\usepackage[numbers,sort&compress]{natbib}
+\usepackage{float}
+\usepackage{makecell}
+\usepackage[round,authoryear]{natbib}
 \usepackage[colorlinks=true,linkcolor=blue!50!black,citecolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
 \usepackage{cleveref}
 \usepackage{xurl}
-\usepackage{makecell}
 
-\definecolor{accent}{HTML}{2a78d6}
-\definecolor{good}{HTML}{1baf7a}
-\definecolor{warn}{HTML}{eb6834}
-\definecolor{soft}{HTML}{f3f2ee}
-
+\definecolor{warn}{HTML}{b84e1f}
+\definecolor{good}{HTML}{12805c}
 \newcolumntype{L}{>{\raggedright\arraybackslash}X}
 \newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
-\usepackage{float}
 \newcommand{\ra}{$\rightarrow$}
-\newcommand{\status}[1]{\textsc{#1}}
-
-\newtcolorbox{keybox}[1][]{colback=soft,colframe=accent,boxrule=0.6pt,arc=2pt,left=6pt,right=6pt,top=4pt,bottom=4pt,title={#1},fonttitle=\bfseries\small,coltitle=white}
-
+\newcommand{\finding}[1]{\paragraph{#1}}
 \captionsetup{font=small,labelfont=bf}
 \setlist{itemsep=2pt,topsep=3pt}
 
-\title{\textbf{Predictive GPU Right-Sizing for Production Online Inference}\\[4pt]
-\large A Research Proposal Grounded in the Alibaba Serverless Infrastructure GPU Trace}
+\title{\textbf{Reclaimable Is Not Reusable:\\Evaluating GPU Right-Sizing Under Cluster Shift}}
 \author{Saksham Adhikari\thanks{Corresponding author: \href{mailto:pqo14@txstate.edu}{\texttt{pqo14@txstate.edu}}} \and Sudip Bhandari\\[4pt]
-\normalsize Advisor: Dr.\ Fred Zhao\\[2pt]
-\normalsize ISAN 3392 \textbullet{} Texas State University}
-\date{Fall 2026 \textbullet{} Working draft, \today}
+\normalsize Advisor: Dr.\ Fred Zhao \textbullet{} Texas State University}
+\date{\normalsize Working draft, not peer reviewed \textbullet{} \today}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
-\noindent Production GPU fleets serving online inference are routinely over-reserved: operators trade utilization for latency headroom because an under-provisioned inference pod hurts users directly. We ask how much of that reserved capacity can be recovered by predicting, at admission, the smallest safe GPU slice a pod needs (\emph{Model A, allocation}), and what placement risk the recovery carries (\emph{Model B, readiness/failure}). Using the six-month Alibaba Serverless Infrastructure (ASI) trace released with OSDI~'26 (up to 155{,}410 GPUs on 37{,}707 servers), we built two datasets (294{,}465 pods for right-sizing; 2{,}826{,}036 pods for placement) and evaluated history-rule, linear, and gradient-boosted models under a pre-registered go/no-go gate on ten held-out clusters. At a fixed 5\% under-provisioning budget, about \textbf{21\% of reserved online-inference GPU-hours} are reclaimable on clusters never seen in training, almost entirely from recommendation pods with workload history; GenAI pods have a median minimum viable fraction of 0.983 of a GPU, consistent with ASI's report that GenAI inference fills GPU memory while leaving compute mostly idle. A simple workload-history rule captures nearly all of it (20.8\% vs.\ 21.9\% for XGBoost), so the learned model returned \textsc{no-go} on its accuracy gate. Model B predicts failure to become ready with ROC-AUC 0.75 in known clusters but 0.65 and poorly calibrated on unseen clusters. A follow-up round found that a hybrid policy (history rule for warm pods, learned model for cold-start pods) reclaims 22.6\% vs.\ 20.7\% at matched risk ($p = 0.014$) while keeping the rule's tail safety, and that finer slice sizes would add about 5 points; per-cluster recalibration and new placement features did not close the transfer gap. A peak-hour check on the raw hourly trace shows that about 80\% of the opportunity survives traffic spikes (sizing to each pod's maximum demand during cluster spike hours keeps 82\%), so it is mostly steady headroom rather than overnight lulls; a peak-safe policy would reclaim roughly 15--17\%. A rebuild of the dataset without the history-feature leak (E9) confirms the 21\% headline (XGBoost 21.0\% vs.\ 20.8\% for the rule) and withdraws an earlier 25\% upper estimate; with labels sized for each pod's P99 or busiest hour, measured reclaim is 14.3\% and 12.9\%, and the history rule beats XGBoost. This document preserves the full research trail (hypotheses, experiments, failures, and comparisons), positions the results against commercial GPU schedulers at Google, AWS, Microsoft, NVIDIA, Meta, and Alibaba itself, quantifies business value, and proposes the next round of experiments: workload-mixing signals (recommendation vs.\ GenAI co-location), workload--GPU compatibility, production vs.\ non-production behaviour, runtime patterns, and explicit safety constraints.
+\noindent Online-inference GPU fleets are routinely over-reserved, and predicting the smallest safe GPU slice for each pod promises large savings. We show that this promise breaks in two places. Using a six-month production trace from Alibaba (294{,}465 pods, ten held-out clusters), we treat the safety margin as part of the method, label oracle results as such, and report seen-cluster and unseen-cluster performance together. Under these conditions, a gradient-boosted model fails to beat a per-workload history rule: it is more accurate in only 4 of 10 unseen clusters ($p = 0.81$), and the margin rule moves savings about five times more than the choice of model. We then extend evaluation beyond prediction, to hourly safety, recovery and reuse. At a 5\% risk budget, 21\% of reserved GPU-hours are reclaimable with oracle margins and 11\% with deployable ones, and a six-hour fallback removes 81\% of short pod-hours while keeping 95\% of the savings. But only 4\% of the GPU-hours freed become whole GPUs that a new job can use with enough CPU, when preemptible pods are counted as occupants. Replaying trace snapshots through a scheduler simulator, sizing pods to their hourly need frees 8--10 points of usable GPUs under each of five placement policies, and about 18 points if CPU is sized together with the GPU, while the choice among those policies changes the result by under a point. Right-sizing is limited by CPU, not by GPU prediction or placement policy.
 \end{abstract}
 
-\begin{keybox}[Open call: collaborators, advisors and new data]
-\small
-This is a working preprint and we want it to be challenged. We would especially like to hear from:
-\begin{itemize}[leftmargin=1.2em,itemsep=1pt,topsep=2pt]
-  \item \textbf{Advisors and reviewers} in ML for systems or cluster scheduling who can critique the method and the evaluation protocol.
-  \item \textbf{Teams with GPU-cluster telemetry that includes request latency or SLOs.} The ASI trace has none, so our under-provisioning rate $U$ is only a proxy for user-facing harm (\cref{sec:limitations}).
-  \item \textbf{Anyone who can run controlled resize experiments or has a scheduler simulator.} The trace can validate under 2\% of GPU-hours for the joint A+B policy (\cref{sec:followup}); closing that gap needs counterfactual data (E10).
-  \item \textbf{Operators of other fleets} (other clouds, on-premises, university HPC) to test whether the results transfer beyond Alibaba.
+% ===========================================================================
+\section{Introduction}
+\label{sec:intro}
+
+Interactive AI services keep tail latency low by over-reserving accelerators, so a large share of reserved GPU capacity sits idle. A natural response is \emph{right-sizing}: predict, when a pod is admitted, the smallest GPU slice that meets its need, and return the rest to the pool. A natural first estimate of the opportunity is the share of reservations that could be reclaimed.
+
+Two questions separate that estimate from something an operator can act on. First, \emph{does a learned model still help on a cluster it has never seen, when compared fairly with a simple baseline?} Second, \emph{what does a prediction do once it becomes a scheduling decision?} A slice that looks safe per pod can run short hour by hour, and capacity that is freed on paper may be impossible for another job to use.
+
+The first question has a mature methodology in machine learning. \citet{gulrajani2021search} showed that careful, equal-conditions evaluation erased the apparent advantage of domain-generalization methods over empirical risk minimization, and argued that a method without a model-selection rule is incomplete. \citet{koh2021wilds} established the practice of reporting in-distribution and out-of-distribution performance together on real-world shifts. We adopt both, with GPU clusters as domains and a history rule as the strong baseline. Those benchmarks stop at predictive performance. We go further, because a right-sizing prediction has no value until a scheduler acts on it.
+
+\paragraph{Contributions.}
+\begin{itemize}
+  \item \textbf{A cluster-shift evaluation protocol for right-sizing} with leave-one-cluster-out testing, three explicitly defined margin-selection rules including a disclaimed oracle, a seen-versus-unseen comparison, and a pre-registered go/no-go gate (\cref{sec:protocol}).
+  \item \textbf{A strong-baseline result.} A per-workload history rule matches or beats learned models on unseen clusters, is about three times safer per pod-hour, and needs no training. The margin rule moves savings about five times more than the model does (\cref{sec:q1,sec:q4}).
+  \item \textbf{A measured leakage audit.} A subtle history-feature leak inflated the learned model's deployable savings by 1.9 points and raised its cluster wins from 3 to 5 of 10 (\cref{sec:q3}).
+  \item \textbf{A decision ladder} that evaluates the same policies at five levels, from predictive loss to reusable capacity. The preferred policy changes with the level, and only 3.8\% of freed GPU-hours are reusable under today's placement when preemptible pods count as occupants (\cref{sec:q4,sec:q5}).
+  \item \textbf{A scheduler-simulator study.} Replaying 1{,}260 trace snapshots through the FGD simulator shows that pod sizing and CPU co-sizing, not the placement policy, decide how much freed capacity can be reused (\cref{sec:q6}).
 \end{itemize}
-Partners get our data pipeline and pre-registered evaluation code to run on their own data, and co-authorship on joint work.
-\textbf{Contact:} \href{mailto:pqo14@txstate.edu}{\texttt{pqo14@txstate.edu}}\newline Issues and discussion: \url{https://github.com/Tar-ive/predictive-gpu-right-sizing}
-\end{keybox}
-
-\begin{keybox}[Reading guide]
-\small
-\begin{tabularx}{\linewidth}{@{}lL@{}}
-\textbf{Model A} & \emph{Allocation.} Predicts the minimum viable GPU fraction (MVF) per online-inference pod at admission, with a conformal safety margin. Success = reserved GPU-hours reclaimed ($R$) at under-provisioning rate $U \le 5\%$. \\
-\textbf{Model B} & \emph{Readiness/failure.} Predicts the probability a pod fails to become ready when placed. Success = discrimination (ROC/PR-AUC) and calibration (ECE) that hold on unseen clusters. \\
-\textbf{Status tags} & \status{done} = run and reported; \status{proposed} = designed here, not yet run. No numbers in this document are reported for \status{proposed} experiments. E6--E8 were run in a follow-up round (\cref{sec:followup}). \\
-\end{tabularx}
-\end{keybox}
-
-\tableofcontents
-\newpage
 
 % ===========================================================================
-\section{Motivation and Problem Statement}
-\label{sec:motivation}
+\section{Problem Setting}
+\label{sec:setting}
 
-Companies serving interactive AI products (feeds, ads, search ranking, chat assistants) prioritize low tail latency because it drives engagement and satisfaction. The standard operational response is to over-reserve: give each inference pod a whole GPU, or more, and accept low utilization as the price of headroom. Because accelerators dominate the capital and energy cost of an AI datacenter, even small utilization gains translate into large savings.
-
-\paragraph{The utilization identity.} Suppose a fleet of $N$ servers runs at utilization $R_1$, and better allocation raises it to $R_2$ while serving the same work. Ignoring packing and failure constraints, the number of servers $X$ that can be freed satisfies
+A pod $i$ is admitted with features $x_i$ and requests $r_i$ GPUs for $h_i$ hours. Its \emph{minimum viable fraction} is
 \begin{equation}
-N R_1 = (N - X) R_2 \quad\Longrightarrow\quad X = N\,\frac{R_2 - R_1}{R_2}.
-\label{eq:util}
+y_i = \min\bigl(1,\ \max\bigl(\mathrm{P90}(\text{compute share}),\ \mathrm{P90}(\text{memory share})\bigr)\bigr),
+\label{eq:mvf}
 \end{equation}
-With $N = 100{,}000$, $R_1 = 28\%$, $R_2 = 40\%$, we obtain $X = 30{,}000$ servers; at an assumed \$5{,}000 per server this is \$150M of avoided capital. \Cref{fig:util} shows the identity is concave: the first points of utilization are the most valuable.
+computed over its observed hours. A sizing policy assigns a fraction $s_i$ from the slice sizes observed in the trace, a grid of 27 sizes that jumps from 0.5 to 0.7 to 1.0 GPU. We report the \emph{under-provisioning rate} and the \emph{reclaimed share} of reserved GPU-hours:
+\begin{equation}
+U = \frac{1}{n}\sum_i \mathbf{1}[s_i < y_i], \qquad R = \frac{\sum_i h_i r_i (1 - s_i)}{\sum_i h_i r_i}.
+\label{eq:ur}
+\end{equation}
+The goal is to maximize $R$ subject to $U \le 5\%$. Each cluster is a domain: clusters differ in hardware, workload mix and failure rate, and a policy is deployed on clusters that were not available when it was built.
 
-\begin{figure}[h]
-\centering
-\includegraphics[width=0.55\linewidth]{figures/fig_util.pdf}
-\caption{Share of the fleet freed by raising utilization from 28\% to $R_2$ (\cref{eq:util}). Idealized: assumes perfect packing and no added failure risk. Sections~\ref{sec:results} and~\ref{sec:value} show why the realizable number is smaller.}
-\label{fig:util}
-\end{figure}
+\paragraph{Data.} We use the Alibaba Serverless Infrastructure (ASI) trace released with OSDI~'26~\citep{li2026asi,alibaba2026trace}, which covers six months and up to 155{,}410 GPUs. Scope is online-inference recommendation and GenAI pods with a GPU request. D1 (right-sizing) holds 294{,}465 whole-GPU pods observed for at least 24 hours. D2 (placement) holds 2{,}826{,}036 pods with a readiness label and a 46\% failure rate. Between 61\% and 68\% of pods have no workload history.
 
-\paragraph{Research question.} \emph{How much GPU capacity in production online-inference fleets can be recovered by predicting, at admission, the smallest safe GPU slice a pod needs, and what placement risk does that recovery carry?} We separate the problem into two models with distinct jobs:
+\paragraph{Models.} The baseline \textbf{A1} is the per-workload 90th percentile of past need over the last 7 days, using only pods finished before admission, with a model-type $\times$ GPU-type fallback. \textbf{A2} is regularized linear quantile regression and \textbf{A3} is XGBoost quantile regression with monotone constraints on history features, both at $\tau = 0.90$. Each family received the same budget of three configurations chosen on validation data only. For placement risk, \textbf{B1}, \textbf{B2} and \textbf{B3} are logistic regression, random forest and LightGBM classifiers of failure to become ready.
 
+% ===========================================================================
+\section{Evaluation Protocol}
+\label{sec:protocol}
+
+\Cref{tab:mapping} shows how the protocol relates to the two reference benchmarks. The rows marked \emph{added} are specific to this work.
+
+\begin{table}[t]
+\centering\small
+\caption{How the evaluation relates to DomainBed and WILDS.}
+\label{tab:mapping}
+\begin{tabularx}{\linewidth}{@{}P{2.25cm}P{3.0cm}P{3.0cm}L@{}}
+\toprule
+Element & DomainBed (ICLR 2021) & WILDS (ICML 2021) & This paper \\
+\midrule
+Domain & Hide one image domain & Natural splits (e.g.\ hospitals) & Hold out one GPU cluster \\
+Strong baseline & ERM & ERM & Per-workload history rule (A1) \\
+Selection rule & Three methods; oracle disclaimed & OOD validation set & Three margin rules; oracle disclaimed \\
+ID vs.\ OOD & Not the focus & Reported together & Seen vs.\ unseen clusters \\
+Worst case & Average over test domains & Worst-group, 10th percentile & Worst-cluster $U$ and short hours \\
+Uncertainty & 3 full sweeps, standard error & 3+ replicates, std.\ dev. & Paired Wilcoxon over 10 clusters; no repeated sweeps \\
+Main outcome & No method beats ERM by more than a point on average & Existing methods do not close the ID--OOD gap & A3 does not beat A1 \\
+\midrule
+\emph{Added:} leakage & -- & -- & Rebuild with finished-before-admission history \\
+\emph{Added:} decision & -- & -- & Five-level ladder to reusable capacity \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{Splits and held-out clusters.} Days 14--129 are used for training, 130--157 for validation and calibration, and 158--183 for testing. For each of the 10 clusters with at least 9{,}000 pods, models are trained on the other clusters' training days and scored on the held-out cluster's test days.
+
+\paragraph{Margin selection is part of the method.} A prediction becomes a slice through a safety margin and rounding up to the grid, so an evaluation that does not say how the margin was chosen is incomplete, in the same sense that \citet{gulrajani2021search} apply to hyperparameters. We report three rules:
 \begin{itemize}
-  \item \textbf{Model A (allocation / right-sizing):} a quantile regressor for the pod's minimum viable GPU fraction, wrapped in a split-conformal margin so that at most $\approx$5\% of pods are under-provisioned.
-  \item \textbf{Model B (readiness / failure):} a calibrated classifier for whether the pod becomes ready after placement, used to veto shrinks that make placement unsafe.
-\end{itemize}
-Keeping these separate matters: Model A answers ``how much does this pod need?''; Model B answers ``if we give it that, will it come up?'' Conflating them hides the second risk behind the first.
-
-% ===========================================================================
-\section{Research Questions and Hypotheses}
-\label{sec:rq}
-
-\begin{table}[h]
-\centering\small
-\caption{Research questions, hypotheses, and current status. H1--H4 were pre-registered before modelling; H5--H10 are added in this proposal; H10 was tested in the follow-up round (\cref{sec:followup}).}
-\label{tab:hyp}
-\begin{tabularx}{\linewidth}{@{}p{0.6cm}Lp{2.2cm}p{2.3cm}@{}}
-\toprule
-ID & Hypothesis & Model & Status \\
-\midrule
-H1 & A learned quantile model (A3) predicts minimum viable slice more accurately than a per-workload P90 history rule (A1) on unseen clusters. & A & \status{done}: rejected \\
-H2 & Failure to become ready is predictable and calibrated from admission-time features. & B & \status{done}: partly supported \\
-H3 & A material share ($>$10\%) of reserved GPU-hours is reclaimable at $U \le 5\%$. & A & \status{done}: supported ($\approx$21\%) \\
-H4 & Relationships transfer to clusters unseen in training. & A, B & \status{done}: partly \\
-\midrule
-H5 & \emph{Workload mixing.} Pods on servers dominated by recommendation workloads have lower, more predictable MVF than pods co-located with GenAI; co-location share improves A's pinball loss and B's PR-AUC. & A, B & \status{proposed} \\
-H6 & \emph{Compatibility.} Readiness failure depends on the (workload type $\times$ GPU type $\times$ slice size) interaction, not on each factor alone. & B & \status{proposed} \\
-H7 & \emph{Production vs.\ non-production.} High-priority (production) pods have tighter, more stable demand and lower reclaimable share but lower failure; mixing them with low-priority pods raises B's risk for the latter. & A, B & \status{proposed} \\
-H8 & \emph{Runtime patterns.} Diurnal amplitude and burstiness from early-life telemetry predict MVF better than static request features for cold-start pods. & A & \status{proposed} \\
-H9 & \emph{Safety constraints.} A per-segment risk budget (tighter for GenAI/production, looser for rec/non-production) reclaims more than a uniform 5\% budget at equal expected harm. & A+B & \status{proposed} \\
-H10 & \emph{Hybrid policy.} History rule for warm pods + A3 for cold-start pods matches or beats either alone. & A & \status{done}: supported (exploratory) \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-% ===========================================================================
-\input{sections/industry}
-
-% ===========================================================================
-\section{Data}
-\label{sec:data}
-
-\subsection{Source}
-The data come from the anonymized Alibaba Serverless Infrastructure (ASI) GPU trace (\path{cluster-trace-gpu-v2026}) released with the OSDI~'26 characterization paper~\cite{li2026asi}. It covers about six months of a hyperscale production AI cluster serving heterogeneous workloads (ad-hoc development, training, online inference, offline inference) and, at the hourly peak, 155{,}410 GPUs across 37{,}707 GPU servers. The trace provides fact tables for workload mix, job and model types, priority classes, resource requests and utilization, GPU and server inventory, access-switch (ASW) topology, network traffic, and execution time.
-
-\subsection{Early exploration (research trail)}
-The project began from an open question (``can scheduling patterns in GPU traces raise utilization without hurting inference SLAs?'') and an explicit list of unknowns: the schema, a tractable working sample, a research question that fits one semester, and storage/compute budget. Initial exploratory visualizations used a 1--2\% sample of the trace. A supervisor comment narrowed the scope to \emph{recommendation + GenAI data for online inference}, which became the D1/D2 population below. Distributed-training topics (e.g.\ FSDP) and a Kaggle-style training example were set aside until the business problem was fixed.
-
-\paragraph{Data repair.} Day and hour fields were missing on ingest; they were recovered from source file paths before any dataset was built. This is recorded because every temporal split depends on it.
-
-\subsection{Modelling datasets}
-
-\begin{table}[h]
-\centering\small
-\caption{Modelling datasets built from the ASI trace.}
-\label{tab:datasets}
-\begin{tabularx}{\linewidth}{@{}lp{1.4cm}rL@{}}
-\toprule
-Dataset & Used for & Rows (pods) & Target \\
-\midrule
-\texttt{D1\_RIGHTSIZING} & Model A & 294{,}465 & $Y_{\text{MVF}}$: smallest GPU fraction covering the pod's busy hours (median 0.231 rec, 0.983 GenAI) \\
-\texttt{D2\_PLACEMENT} & Model B & 2{,}826{,}036 & $Y_{\text{READY}}$: whether the pod became ready at admission (failure rate 46\%) \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-\noindent\textbf{Scope.} Online-inference pods for recommendation (rec) and GenAI models with a GPU request. D1 additionally requires whole-GPU pods observed for at least 24 hours. Between 61\% and 68\% of pods have no workload history (cold start).
-
-% ===========================================================================
-\section{Method}
-\label{sec:method}
-
-\begin{figure}[h]
-\centering
-\begin{tikzpicture}[
-  box/.style={draw=accent,rounded corners=2pt,fill=soft,align=center,font=\footnotesize,inner sep=3pt,minimum height=13mm,
-               text width=#1,execute at begin node={\hyphenpenalty=10000\exhyphenpenalty=10000}},
-  box/.default=2.5cm,
-  dec/.style={box=#1,draw=warn,fill=warn!8},
-  dec/.default=2.6cm,
-  arr/.style={-{Latex[length=2mm]},thick,draw=black!60}]
-% Columns at fixed x so nothing depends on text width; Model A / B are stacked with a clear gap.
-% Run scripts/check_pdf.py after editing: it fails if any labels overlap.
-\newcommand{\hd}[1]{{\small\bfseries #1}\\[1pt]}
-\node[box=2.3cm]  (pod)  at (0,0)       {\hd{Pod arrives}request size,\\model type,\\GPU type, priority};
-\node[box=2.6cm]  (feat) at (3.15,0)    {\hd{Features}workload history,\\cluster load,\\server occupancy};
-\node[box=3.2cm]  (A)    at (6.85,1.3)  {\hd{Model A}P90 quantile of MVF\\+ conformal margin};
-\node[box=3.2cm]  (B)    at (6.85,-1.3) {\hd{Model B}P(fail to ready),\\calibrated};
-\node[dec]        (pol)  at (10.45,0)   {\hd{Policy}shrink to slice $s$\\if $\Delta$risk $\le$ cap};
-\node[box=2.3cm]  (out)  at (13.55,0)   {\hd{Allocated slice}27-size grid};
-\draw[arr] (pod) -- (feat);
-\draw[arr] (feat.east) -- (A.west);
-\draw[arr] (feat.east) -- (B.west);
-\draw[arr] (A.east) -- (pol.west);
-\draw[arr] (B.east) -- (pol.west);
-\draw[arr] (A.south) -- node[right,font=\scriptsize,align=left,xshift=1pt]{re-score at\\shrunk size} (B.north);
-\draw[arr] (pol) -- (out);
-\end{tikzpicture}
-\caption{Two-model framing. Model A proposes a smaller slice; Model B re-scores placement risk at that size; the policy accepts the shrink only if the predicted increase in failure risk is under a cap.}
-\label{fig:pipeline}
-\end{figure}
-
-\subsection{Model families}
-
-\begin{table}[h]
-\centering\small
-\caption{Model families. Each family received the same tuning budget (three configurations, chosen on validation only).}
-\label{tab:models}
-\begin{tabularx}{\linewidth}{@{}lL@{}}
-\toprule
-Model & Description \\
-\midrule
-A1 & Per-workload 90th percentile of past need over the last 7 days (only pods finished before admission); falls back to the model-type $\times$ GPU-type percentile. \\
-A2 & Regularized linear quantile regression ($\tau = 0.90$). \\
-A3 & XGBoost quantile regression ($\tau = 0.90$) with monotone constraints on history features. \\
-B1 / B2 / B3 & Logistic regression / random forest / LightGBM classifiers for failure to become ready, with Platt or isotonic calibration. \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-\subsection{Evaluation protocol}
-\begin{itemize}
-  \item \textbf{Temporal split.} Train days 14--129; validation days 130--157 (split by workload into an early-stopping half and a calibration half); test days 158--183.
-  \item \textbf{Leave-one-cluster-out (LOCO).} For each of the 10 clusters with $\ge$9{,}000 pods, train on the other clusters' training days and score that cluster's test days.
-  \item \textbf{Safety margin.} Split-conformal margin per (model type $\times$ cold/warm) targeting 95\% coverage, then rounded \emph{up} to one of the 27 slice sizes observed in the trace.
-  \item \textbf{Metrics.} Pinball loss ($\tau=0.90$); $U$ = share of pods given less than they needed; $R$ = share of reserved GPU-hours reclaimed; for Model B, PR-AUC, ROC-AUC, Brier, ECE; paired Wilcoxon signed-rank tests across the 10 clusters.
-  \item \textbf{Pre-registered gate.} A3 passes only if it beats A1 on pinball loss in $\ge$8 of 10 clusters with Wilcoxon $p \le 0.05$, \emph{and} reclaims more while keeping $U$ near 5\%.
+  \item \textbf{Cross-cluster conformal (deployable).} A split-conformal margin~\citep{romano2019cqr,angelopoulos2021gentle} per model type $\times$ cold/warm cell, fitted on other clusters and targeting 95\% coverage. It uses no information from the test cluster.
+  \item \textbf{Per-cluster recalibration.} The margin is re-estimated on part of the held-out cluster and scored on its remaining test days. This assumes a labelled sample from the new cluster.
+  \item \textbf{Matched risk (oracle).} The margin is tuned so that each model sits at exactly $U = 5\%$ in each test cluster. \emph{This uses test labels and is not a valid deployment estimate.} We report it because it equalizes risk across models and bounds the opportunity.
 \end{itemize}
 
+\paragraph{Pre-registered gate.} A3 passes only if it beats A1 on pinball loss in at least 8 of 10 clusters, with Wilcoxon $p \le 0.05$, and reclaims more while keeping $U$ near 5\%. Later analyses are labelled exploratory, or as having a decision rule set before running, and H11 and H12 were tested on days already used.
+
+\paragraph{The decision ladder.} Predictive metrics are the first of five levels at which the same policies are compared:
+\begin{enumerate}[label=\textbf{L\arabic*.},start=0,leftmargin=2.2em]
+  \item \emph{Prediction:} pinball loss.
+  \item \emph{Per-pod decision:} $U$ and $R$ after margin and rounding.
+  \item \emph{Hourly safety:} the slice is compared with actual compute and memory in every hour the pod ran.
+  \item \emph{Recovery policy:} the pod returns to its full request after $k$ consecutive short hours.
+  \item \emph{Reusable capacity:} the freed slice must complete a whole free GPU on that server, with enough free CPU for a new job.
+\end{enumerate}
+
 % ===========================================================================
-\section{Results to Date}
+\section{Results}
 \label{sec:results}
 
-\subsection{Model A: allocation}
+\subsection{A history rule matches learned models under equal conditions}
+\label{sec:q1}
 
-\begin{table}[h]
+\begin{table}[t]
 \centering\small
-\caption{Model A on unseen clusters (mean of 10 held-out clusters, test days) and on seen clusters (future test days).}
+\caption{Model A on seen clusters (future test days) and on unseen clusters (mean of 10 held-out clusters), with deployable margins.}
 \label{tab:modelA}
-\begin{tabular}{@{}lcccc@{\hspace{1.2em}}ccc@{}}
+\begin{tabular}{@{}lcccc@{\hspace{1em}}ccc@{}}
 \toprule
-& \multicolumn{4}{c}{Unseen clusters (LOCO)} & \multicolumn{3}{c}{Seen clusters} \\
+& \multicolumn{4}{c}{Unseen clusters} & \multicolumn{3}{c}{Seen clusters} \\
 \cmidrule(lr){2-5}\cmidrule(l){6-8}
 Model & Pinball & $R$ & $U$ & Coverage & Pinball & $R$ & $U$ \\
 \midrule
 A1 history rule & \textbf{0.0247} & 11.0\% & \textbf{0.7\%} & \textbf{96.7\%} & 0.0249 & 8.7\% & \textbf{0.5\%} \\
-A2 linear QR    & 0.0266 & 12.9\% & 1.4\% & 90.0\% & 0.0266 & 11.1\% & 1.1\% \\
-A3 XGBoost QR   & 0.0259 & \textbf{14.3\%} & 2.0\% & 92.2\% & \textbf{0.0237} & \textbf{13.0\%} & 1.0\% \\
+A2 linear & 0.0266 & 12.9\% & 1.4\% & 90.0\% & 0.0266 & 11.1\% & 1.1\% \\
+A3 XGBoost & 0.0259 & \textbf{14.3\%} & 2.0\% & 92.2\% & \textbf{0.0237} & \textbf{13.0\%} & 1.0\% \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\begin{table}[h]
+\finding{The learned model fails the pre-registered gate.} A3 has lower pinball loss than A1 in 4 of 10 unseen clusters ($p = 0.81$), so the decision is \textsc{no-go} (\cref{tab:modelA}). It does reclaim more at deployable margins (14.3\% vs.\ 11.0\%, $p = 0.007$), but with roughly three times the under-provisioning. Widening the search to 14 configurations did not change the outcome (4 of 10, $p = 0.84$), so the tuning budget does not explain it.
+
+\finding{The margin rule matters more than the model.} \Cref{tab:selection} compares models across margin rules. With leak-free features, moving from the deployable rule to the oracle changes A1's reclaim by 9.8 points and A3's by 8.3. The model gap is 1.7 points at deployable margins and 0.2 at the oracle. Adding finer slice sizes, a what-if that assumes they can be enforced, adds a further 4.8--5.8 points at default margins, again more than the A1-to-A3 gap. \Cref{fig:tradeoff} shows why: A3's deployable advantage is mostly additional risk.
+
+\begin{table}[t]
 \centering\small
-\caption{Pre-registered go/no-go gate for A3 vs.\ A1 on unseen clusters.}
-\label{tab:gate}
-\begin{tabular}{@{}lll@{}}
+\caption{Reclaimed share under each margin rule. The first and last rows use leak-free features for A3 (A1 is unaffected by the leak). Per-cluster recalibration comes from an earlier re-run on the original features, scored on the remaining test days, where A1's starting value is 9.5\%; its learned column is the re-tuned A3v2.}
+\label{tab:selection}
+\begin{tabular}{@{}lccc@{}}
 \toprule
-Criterion & Result & Outcome \\
+Margin rule & Test-cluster information used & A1 $R$ & Learned $R$ \\
 \midrule
-A3 more accurate in $\ge$8 of 10 clusters & 4 of 10 & \textcolor{warn}{\textbf{Fail}} \\
-Wilcoxon $p \le 0.05$ on pinball loss & $p = 0.81$ & \textcolor{warn}{\textbf{Fail}} \\
-More reclaimed with $U$ near 5\% & 14.3\% vs.\ 11.0\%, $p = 0.007$ & \textcolor{good}{\textbf{Pass}} \\
-\midrule
-\textbf{Decision} & & \textbf{NO-GO} \\
+Cross-cluster conformal (deployable) & None & 11.0\% & 12.7\% \\
+Per-cluster recalibration & Labelled sample & 15.2\% & 16.6\% \\
+Matched $U = 5\%$ (\emph{oracle}) & All test labels & 20.8\% & 21.0\% \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\paragraph{Matched-risk comparison (exploratory, added after the gate).} Holding every model to exactly $U = 5\%$ in each cluster, A3 is ahead in 8 of 10 clusters by a mean of 1.1 points (median 0.7), reclaiming 21.9\% vs.\ 20.8\% for A1; this is not significant (Wilcoxon $p = 0.14$). The history rule wins clearly in clusters \texttt{3f39} and \texttt{7087}. \Cref{fig:tradeoff} shows the picture: A3's apparent advantage at default margins is mostly bought risk.
-
-\begin{figure}[h]
+\begin{figure}[t]
 \centering
-\includegraphics[width=0.62\linewidth]{figures/fig_tradeoff.pdf}
-\caption{Reclaim--risk trade-off on unseen clusters. Circles: default conformal margins. Squares: margins re-tuned so each model sits at exactly $U=5\%$. Dashed lines connect the two operating points of the same model and are not measured curves.}
+\includegraphics[width=0.55\linewidth]{figures/fig_tradeoff.pdf}
+\caption{Reclaim--risk trade-off on unseen clusters. Circles: default conformal margins. Squares: margins re-tuned so each model sits at exactly $U = 5\%$ (oracle). Dashed lines connect the two operating points of a model and are not measured curves. The figure uses the original history features; with leak-free features A3 reaches 21.0\% at the oracle (\cref{tab:e9}).}
 \label{fig:tradeoff}
 \end{figure}
 
-\paragraph{Where savings come from.} Almost all reclaimable capacity sits in recommendation pods with workload history (\cref{fig:segments}). A3's one clear advantage is on recommendation pods \emph{without} history (8.1\% vs.\ 0\%), the cold-start case, which motivates the hybrid policy (H10).
+\finding{The learned model's value is confined to pods without history.} Almost all reclaimable capacity is in recommendation pods with workload history (33--43\% on seen clusters), while GenAI pods have a median minimum viable fraction of 0.983. A3's clear advantage is on recommendation pods without history (8.1\% vs.\ 0\%). A hybrid that uses A1 for warm pods and a learned model for cold pods reached 22.6\% vs.\ 20.7\% at the oracle ($p = 0.014$), but this falls to about $p = 0.11$ after Holm correction and has not been re-run on leak-free features. It is the strongest candidate policy, but its advantage does not survive multiple-testing correction.
 
-\begin{figure}[h]
-\centering
-\includegraphics[width=0.62\linewidth]{figures/fig_segments.pdf}
-\caption{Reserved GPU-hours reclaimed by pod group (seen clusters, test days).}
-\label{fig:segments}
-\end{figure}
+\subsection{Cluster shift removes the learned model's advantage}
+\label{sec:q2}
 
-\paragraph{Other Model A findings.}
-\begin{itemize}
-  \item \textbf{Slice sizes cap savings.} The 27 sizes in the trace jump from 0.5 to 0.7 to 1.0 GPU, so any pod needing more than 0.7 keeps a whole GPU (\cref{fig:quant}). This alone explains why GenAI pods (median need 0.983) offer almost nothing.
-  \item \textbf{Monotone constraints are free.} Removing them changed pinball loss by 0.0000; an audit confirmed no prediction ever decreases as past demand rises.
-  \item \textbf{History and cluster load both help.} Removing workload history raised pinball loss by 0.0045 and cut $R$ by 1.4 points; removing cluster-load features pushed $U$ to 4.5\%.
-  \item \textbf{Identity features add nothing.} Cluster and switch IDs did not help; separate rec and GenAI models did not beat one pooled model.
-  \item \textbf{Sign flips by segment.} \texttt{cpu\_per\_gpu} has Spearman $+0.14$ with need for rec and $-0.47$ for GenAI, so the originally planned $+1$ monotone constraint would have been wrong.
-  \item \textbf{Drivers.} Model type and the workload's past maximum need dominate (SHAP and permutation importance); a depth-3 rule tree reproduces A3 with $R^2 = 0.887$.
-  \item \textbf{Latency.} A3 scores one pod in 3.6\,ms median, 5.3\,ms p95, well inside an admission-path budget.
-\end{itemize}
+\finding{The learned model's edge disappears on new clusters.} A3's pinball loss rises from 0.0237 on seen clusters to 0.0259 on unseen clusters, while A1 is unchanged (0.0249 and 0.0247). In three rolling temporal windows on seen clusters at matched risk, A3 reclaims 20.5--23.6\% against 13.9--17.4\% for A1. The learned model's disadvantage is a transfer problem, not a modelling failure.
 
-\begin{figure}[h]
-\centering
-\includegraphics[width=0.58\linewidth]{figures/fig_quantisation.pdf}
-\caption{Why the slice grid caps savings. \emph{Illustrative}: the intermediate steps are schematic; the 0.5\ra0.7\ra1.0 jumps and the segment medians are from the trace. Any pod whose need-plus-margin exceeds 0.7 is rounded to a whole GPU.}
-\label{fig:quant}
-\end{figure}
+\finding{Coverage does not transfer, and recalibration does not repair it.} A3's coverage is 92.2\% on unseen clusters against a 95\% target, and its worst single-cluster $U$ reaches 7.3\%, compared with 1.9\% for A1 in the same re-run. Per-cluster recalibration raises reclaim by 3.7--5.6 points but leaves coverage at about 93\%. It mainly loosens margins that were too conservative.
 
-\subsection{Model B: readiness / failure}
+\finding{Risk estimates transfer worse than sizing does.} \Cref{tab:modelB} shows that every placement model loses discrimination on unseen clusters and roughly doubles its calibration error (\cref{fig:modelb}). Failure rates range from 35\% to 67\% by cluster, so a model trained elsewhere cannot know a new cluster's base rate. New features improved seen clusters (ROC-AUC 0.79, ECE 0.030) but not unseen ones significantly.
 
-\begin{table}[h]
+\begin{table}[t]
 \centering\small
-\caption{Model B discrimination and calibration. Failure base rate 46\% (PR-AUC baseline $\approx$0.46). Seen-cluster ECE is after calibration (B3 uses out-of-fold isotonic); unseen PR-AUC uses raw scores.}
+\caption{Model B discrimination and calibration. The failure base rate is 46\%. Seen-cluster ECE is after calibration; unseen PR-AUC uses raw scores.}
 \label{tab:modelB}
 \begin{tabular}{@{}lcccccc@{}}
 \toprule
@@ -323,208 +206,307 @@ More reclaimed with $U$ near 5\% & 14.3\% vs.\ 11.0\%, $p = 0.007$ & \textcolor{
 \cmidrule(lr){2-4}\cmidrule(l){5-7}
 Model & ROC-AUC & PR-AUC & ECE & ROC-AUC & PR-AUC & ECE \\
 \midrule
-B1 logistic      & 0.640 & 0.578 & 0.067 & 0.575 & 0.549 & 0.123 \\
+B1 logistic & 0.640 & 0.578 & 0.067 & 0.575 & 0.549 & 0.123 \\
 B2 random forest & \textbf{0.754} & 0.708 & \textbf{0.044} & \textbf{0.671} & \textbf{0.635} & \textbf{0.112} \\
-B3 LightGBM      & \textbf{0.754} & \textbf{0.717} & 0.053 & 0.651 & 0.615 & 0.121 \\
+B3 LightGBM & \textbf{0.754} & \textbf{0.717} & 0.053 & 0.651 & 0.615 & 0.121 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\begin{figure}[h]
+\begin{figure}[t]
 \centering
-\includegraphics[width=0.85\linewidth]{figures/fig_modelb.pdf}
-\caption{Model B transfer gap. Every model loses discrimination and roughly doubles its calibration error on unseen clusters.}
+\includegraphics[width=0.78\linewidth]{figures/fig_modelb.pdf}
+\caption{Model B transfer gap: every model loses discrimination and roughly doubles its calibration error on unseen clusters.}
 \label{fig:modelb}
 \end{figure}
 
-\begin{itemize}
-  \item Paired tests over 10 unseen clusters: B3 vs.\ B1 on PR-AUC, better in 6 of 10, $p = 0.065$; on ECE, $p = 0.50$; B3 vs.\ B2, $p = 0.78$. None significant.
-  \item \textbf{Why calibration does not transfer:} cluster failure rates range from 35\% to 67\%; a model trained elsewhere cannot know a new cluster's base rate.
-  \item Medium risks are underestimated: pods scored at 40\% fail about 50\% of the time.
-  \item \textbf{Drivers:} priority class, GPU memory requested, GPU type, past compute use, and server occupancy. Big, low-priority pods asking for scarce GPU types on busy servers fail more often.
-  \item \textbf{Latency:} 3.0\,ms median, 7.8\,ms p95.
-\end{itemize}
+\subsection{Leakage inflated the learned model, and stricter targets favour the baseline}
+\label{sec:q3}
 
-\subsection{Combining A and B}
+We rebuilt D1 from the raw hourly trace, reproducing the original 294{,}465 pods. The original history features used sibling pods \emph{admitted} on earlier days, whose labels can include hours after the current pod's admission. The rebuild uses only pods \emph{finished} before admission, and the two rules disagree on 28\% of rows.
 
-\begin{table}[h]
+\begin{table}[t]
 \centering\small
-\caption{A+B composition on test-day pods requesting $\ge$1 GPU and observed $\ge$24 hours ($n = 55{,}636$).}
-\label{tab:compose}
-\begin{tabular}{@{}lcccc@{}}
+\caption{Leakage audit and peak-aware labels at matched risk (oracle), mean over 10 unseen clusters. ``A3 wins'' counts clusters where A3 has lower pinball loss than A1.}
+\label{tab:e9}
+\begin{tabular}{@{}lccccc@{}}
 \toprule
-\makecell[l]{Risk cap\\per pod} & \makecell{Pods\\shrunk} & \makecell{GPU-hours\\reclaimed} & \makecell{Predicted\\failure risk} & \makecell{Shrunk sizes\\seen in training} \\
+History and label & A1 $R$ & A2 $R$ & A3 $R$ & A3 wins & Gate \\
 \midrule
-None      & 27.5\% & 11.4\% & 36.0\% \ra 37.8\% & 12.0\% \\
-+10 points & 20.3\% & 7.3\% & 36.0\% \ra 36.5\% & 8.1\% \\
-+5 points  & 15.2\% & 5.3\% & 36.0\% \ra 36.1\% & 5.5\% \\
-+2 points  & 10.5\% & 3.4\% & 36.0\% \ra 35.9\% & 3.6\% \\
+Leaky history, P90 label & 20.8\% & 20.6\% & 21.3\% & 5/10 & \textsc{no-go} \\
+\textbf{Leak-free, P90 label} & \textbf{20.8\%} & 20.9\% & \textbf{21.0\%} & 3/10 & \textsc{no-go} \\
+Leak-free, P99 label & 14.3\% & 12.1\% & 13.0\% & 2/10 & \textsc{no-go} \\
+Leak-free, maximum label & 12.9\% & 11.4\% & 12.2\% & 1/10 & \textsc{no-go} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\begin{figure}[h]
-\centering
-\includegraphics[width=0.6\linewidth]{figures/fig_composition.pdf}
-\caption{The tighter the risk cap, the fewer shrunk pods land on a slice size Model B has ever observed. Under the +2-point cap only 3.6\% do, so the ``safe'' shrinks are mostly extrapolation.}
-\label{fig:compose}
-\end{figure}
+\finding{The leak favoured the learned model.} A1 is unaffected because it already used the strict rule. Removing the leak lowers A3 by 0.3 points at the oracle and by 1.9 points at deployable margins (14.6\% to 12.7\%), and cuts its wins from 5 to 3 of 10 clusters (\cref{tab:e9}). The rebuild gives 21.3\% for the leaky variant where earlier runs gave 21.9\%, and that 0.6-point difference is not yet explained.
 
-Shrinking pods with Model A and re-scoring them with Model B reclaims 11.4\% of long-running pods' GPU-hours, but fractional-GPU pods make up only 0.3--3.7\% of each cluster, consistent with the OSDI~'26 finding that GPU sharing is rarely used. The composition is therefore reported as a \emph{what-if}, not a validated policy.
+\finding{The baseline strengthens as the target becomes stricter.} Sizing each pod for its P99 or busiest hour reduces reclaim by about a third, and A3 falls behind A1 under both labels. The defensible range is therefore about 21\% for a P90 target and 13--14\% when memory must be safe at its peak.
 
-\input{sections/followup}
-\input{sections/peak}
-\input{sections/e9}
+\subsection{Hourly risk is concentrated, and a simple fallback removes most of it}
+\label{sec:q4}
 
-\subsection{Answers so far}
+$U$ scores a pod once. Replaying each final slice against actual use over about 9.0 million pod-hours on unseen clusters gives a different picture (\cref{tab:ladder}). 4.5\% of A1's pods and 7.0\% of A3's are short in at least one hour, against $U$ of 0.7\% and 2.0\%, and most short hours involve GPU memory (69\% for A1 and 74\% for A3), where a shortfall can crash a pod.
 
-\begin{table}[h]
+\begin{table}[t]
 \centering\small
-\caption{Answers to the pre-registered research questions.}
-\label{tab:answers}
-\begin{tabularx}{\linewidth}{@{}p{4.4cm}L@{}}
+\caption{The decision ladder on unseen clusters. Levels use different cohorts: L0--L2 are means over 10 clusters, L3 pools pods admitted on days 171--183 (A1 $k{=}6$\,h, A3 $k{=}24$\,h, chosen by a rule fixed before running), and L4 weights the 10 clusters over days 158--184. A3 values at L1--L4 use the original history features; leak-free A3 reclaims 12.7\% at L1.}
+\label{tab:ladder}
+\begin{tabular}{@{}llcc@{}}
 \toprule
-Question & Answer \\
+Level & Measure & A1 & A3 \\
 \midrule
-RQ1: Can the minimum viable slice be predicted better than the percentile-over-history heuristic? & \textbf{No} on unseen clusters: A3 better in 4 of 10, $p = 0.81$ (NO-GO). At matched 5\% risk, 21.9\% vs.\ 20.8\% reclaimed, $p = 0.14$. On seen clusters the learned model is ahead in every rolling window, and the hybrid beats the rule at matched risk on unseen clusters (22.6\% vs.\ 20.7\%, $p = 0.014$; \cref{sec:followup}). \\
-RQ2: Is failure to become ready predictable and calibrated? & \textbf{Yes} within known clusters (ROC-AUC 0.75, ECE 0.05); weaker and miscalibrated on unseen clusters (ROC-AUC 0.65, ECE 0.12). \\
-RQ3: How much reserved capacity is reclaimable at a fixed risk? & About \textbf{21\%} of reserved GPU-hours at $U = 5\%$ in the D1 population, almost all from recommendation pods with history. The placement-risk side cannot yet be estimated reliably: restricted to slice sizes Model B has seen, the A+B policy reclaims only 1.8\%. \\
-RQ4: Do relationships transfer to unseen clusters? & \textbf{Partly}: accuracy roughly holds, but conformal coverage falls to 92\% (target 95\%) and Model B's probabilities do not transfer. Per-cluster recalibration and new features narrow but do not close the gap (best unseen ECE 0.08). \\
+L0 Prediction & Pinball loss & \textbf{0.0247} & 0.0259 \\
+\midrule
+L1 Per-pod decision & Reclaimed share $R$ & 11.0\% & \textbf{14.3\%} \\
+& Under-provisioned pods $U$ & \textbf{0.7\%} & 2.0\% \\
+\midrule
+L2 Hourly safety & Short pod-hours & \textbf{0.44\%} & 1.39\% \\
+& Short pod-hours, memory & \textbf{0.29\%} & 1.03\% \\
+& Worst-cluster short pod-hours & \textbf{1.22\%} & 5.18\% \\
+& Pods short for 24\,h or more in a row & \textbf{0.47\%} & 1.15\% \\
+\midrule
+L3 Recovery policy & Short pod-hours, before \ra after & \textbf{0.93\% \ra 0.18\%} & 1.82\% \ra 0.59\% \\
+& Freed GPU-hours, before \ra after & 11.95\% \ra 11.40\% & \textbf{14.24\% \ra 13.67\%} \\
+\midrule
+L4 Reusable capacity & Freed that forms whole GPUs (CPU ignored) & 30\% & 31\% \\
+& Freed usable with enough CPU, ideal sharing & 3.8\% & \textbf{4.9\%} \\
+& Freed usable, no GPU sharing & \textbf{1.2\%} & 0.8\% \\
 \bottomrule
-\end{tabularx}
+\end{tabular}
 \end{table}
 
-% ===========================================================================
-\section{Failures, Negative Results, and What They Taught Us}
-\label{sec:failures}
+\finding{Two different problems hide in the shortfall rate.} The typical shortfall lasts 2 hours and is about 0.1 GPU. But about 1\% of pods stay short for a day or more and account for 66\% of A1's short hours and 73\% of A3's. The longest last 627--648 hours, so some pods were mis-sized from the start.
 
-Negative results are kept in full here because they are the most transferable part of the work.
+\finding{A simple recovery policy solves most of the safety problem.} Restoring the full request after six consecutive short hours cuts A1's short pod-hours by 81\% while keeping 95\% of the freed GPU-hours, satisfying a rule set before running. The rule holds pooled but not in every cluster (the cut is 20\% in \texttt{4d6f}). Early-life usage is a poor guide: raising a slice to the peak of the first 6 or 24 hours cut shortfalls by only 8--34\%.
 
-\begin{longtable}{@{}p{3.4cm}p{5.6cm}p{5.6cm}@{}}
-\caption{Failure log.}\label{tab:failures}\\
+\subsection{Most freed capacity cannot be reused}
+\label{sec:q5}
+
+We replayed each hour of days 158--184 with pods fixed on their actual servers, across 37{,}832 servers in the 10 unseen clusters. Test pods were shrunk to their predicted slices and all other pods kept their requests. A freed slice counts as usable only if it completes a whole free GPU on that server and the server has enough free CPU for a new job needing the cluster's median CPU per GPU.
+
+\begin{table}[t]
+\centering\small
+\caption{From reclaimable to usable, for A1 with the 6-hour fallback at deployable margins, per 1{,}000 reserved GPUs. The bottom two rows apply capacity-replay fractions to the 11.4\% row.}
+\label{tab:chain}
+\begin{tabular}{@{}lcc@{}}
 \toprule
-What failed & Evidence & Lesson / response \\
+Level & Share of reserved GPU-hours & GPUs' worth \\
 \midrule
-\endfirsthead
-\toprule
-What failed & Evidence & Lesson / response \\
-\midrule
-\endhead
-Learned model vs.\ history rule (H1) & A3 better in 4/10 unseen clusters, $p=0.81$; gate NO-GO. & Inference demand is dominated by per-workload persistence. A simple rule is the right production baseline; ML earns its keep only where history is missing (cold start). \\
-Early research question & First framing (``increase utilization without compromising SLA'') had no latency field to measure SLA against. & Reframed around $U$ (under-provisioning rate) as an observable safety proxy; latency stays a stated limitation. \\
-Missing timestamps & Day/hour fields absent on ingest. & Recovered from file paths; added a data-validation step before any split. \\
-History-feature leakage & Building \texttt{wl\_hist\_*} from pods \emph{admitted} on earlier days gave 8\% lower test error than using only pods \emph{finished} before admission. & Confirmed and fixed in E9 (\cref{sec:e9}): the strict rebuild lowers XGBoost's matched-risk reclaim from 21.3\% to 21.0\%. \\
-Planned monotone constraint on \texttt{cpu\_per\_gpu} & Spearman $+0.14$ (rec) vs.\ $-0.47$ (GenAI). & Domain priors must be checked per segment before they become constraints. \\
-Segment-specific models & Separate rec/GenAI models did not beat a pooled model. & Model type is already a dominant split feature; pooling is simpler and as good. \\
-Cluster/switch ID features & No gain. & Identity features do not generalize; use cluster \emph{state} (load, occupancy) instead. \\
-Model B calibration transfer & ECE 0.04--0.07 seen \ra 0.11--0.12 unseen; base rates 35--67\% by cluster. & Needs per-cluster base-rate recalibration (E8) or a hierarchical prior. \\
-Boosting vs.\ random forest for B & B3 vs.\ B2 $p=0.78$. & Model class is not the bottleneck; features and support are. \\
-A+B composition & Only 3.6--12\% of shrunk sizes appear in training. & Model B cannot score counterfactual sizes it never saw. Needs either more fractional-GPU data or a simulator (Tier 3). \\
-Conformal coverage on unseen clusters & 92.2\% vs.\ 95\% target for A3. & Exchangeability breaks across clusters; per-cluster or weighted conformal is needed. \\
-Re-tuning A3 (A3v2) & Wider search; still 4/10 on pinball vs.\ A1, $p = 0.84$. & Tuning budget was not the reason for the NO-GO. \\
-Per-cluster recalibration (E8) & A coverage stays $\approx$92--93\%; B3v2 ECE 0.101 \ra 0.103 with base-rate shift; no model reaches ECE $\le 0.06$. & Recalibration loosens margins but does not restore exchangeability; recent-failure-rate features already encode the base rate. \\
-Validated A+B reclaim & Restricted to slice sizes seen in training, reclaim is 1.8\% (uncapped). & The trace cannot validate most of the A+B policy; only a simulator (E10) can. \\
+Reclaimable at matched 5\% risk (\emph{oracle}) & 20.8\% & 208 \\
+Reclaimable, A1 + 6\,h fallback & 11.4\% & 114 \\
+\quad forms whole free GPUs (ideal sharing, CPU ignored) & 3.4\% & 34 \\
+\quad usable by a new job with enough host CPU & 0.4\% & 4 \\
 \bottomrule
-\end{longtable}
+\end{tabular}
+\end{table}
+
+\finding{Reclaimable is not reusable.} Only 3.8\% of freed GPU-hours are usable, against a threshold of 50\% set before running (\cref{tab:chain}). The hypothesis fails even when CPU is ignored (30\%). Without GPU sharing, usable capacity falls to 1.2\%.
+
+\finding{Two limits act together.} The first is \emph{fractional residue}: a pod cut from 1.0 to 0.5 GPU frees half a GPU, and only about 30\% of freed slices add up to whole free GPUs on the same server. The second is \emph{insufficient CPU}, the condition FGD calls ``stranded''~\citep{weng2023fgd}: shrinking a pod releases GPU but not CPU. Clusters \texttt{da8d} and \texttt{4d6f} produced 39\% of freed GPU-hours but only about 6\% of the usable gain, because only 11--17\% of their free whole GPUs had enough CPU even before shrinking. This agrees with ASI's report that CPU shortage is a leading cause of unallocatable GPUs~\citep{li2026asi}.
+
+\finding{The replay isolates what placement allows today.} Pods stay on their servers, only test pods are shrunk (freed GPU-hours are 1.2\% of capacity), and a new job needs the cluster's median CPU. The 3.8\% therefore measures reuse under current placement, with every pod, including preemptible and best-effort pods, counted as holding its capacity. Fleet-wide shrinking, CPU co-sizing and repacking are the levers that can raise it, and \cref{sec:q6} tests them in a simulator.
+
+\finding{The trace cannot validate placement risk for shrunk pods.} Shrinking pods and re-scoring them with Model B reclaims 11.4\% of long-running pods' GPU-hours, but restricted to slice sizes Model B has seen, reclaim collapses to 1.8\%. The trace barely contains the fractional allocations a right-sizing policy would create, so the joint policy is a what-if.
+
+\subsection{Repacking in a scheduler simulator (exploratory)}
+\label{sec:q6}
+
+The capacity replay keeps every pod on its server. To ask what a scheduler could do with freed capacity, we replayed trace snapshots through the open-source FGD simulator~\citep{weng2023fgd}, which implements FGD and five baseline placement policies. Before using ASI data, we confirmed that our build reproduces the authors' published allocation results exactly for every deterministic policy. We raised the simulator's limit of 8 GPUs per node to 16, because ASI has 16-GPU servers, and the patched build still matches.
+
+\paragraph{Setup.} A snapshot is the set of pods running at the start of an hour (present in that hour and the one before) on one top-of-rack switch group (ASW) of a held-out cluster. We sampled three ASWs with at least 8 servers per cluster and 42 hours from days 158--183: 24 random hours plus two from each cluster's top decile of GPU allocation. This gives 1{,}260 snapshots averaging 46 servers, 427 GPUs and 500 placed pods. Only high-priority (HP) pods are placed, because they hold guaranteed resources: with HP pods alone, fewer than 0.5\% of servers exceed their CPU or GPU capacity, while adding preemptible low-priority and best-effort pods puts 46\% of servers over CPU capacity. Pods keep their GPU type. Each run places a snapshot's pods from empty in a seeded random order, since the trace has no arrival order within an hour. The metric is leftover whole free GPUs that still have 8 free CPU cores each, as a share of all GPUs.
+
+\paragraph{Sizing variants.} Pods keep their original requests; or test pods with an A1 prediction get A1's slice (about 31 of 500 HP pods per snapshot); or every HP online-inference GPU pod gets its average need in that hour, snapped up to the slice grid. The last is an \emph{hourly-need ceiling}, not a deployable policy: it uses the hour's own utilization, and averages rather than peaks. Each variant is also run with the pod's CPU request scaled by the same fraction (\emph{CPU co-sizing}). Intervals are 95\% bootstraps that resample clusters.
+
+\begin{table}[t]
+\centering\small
+\caption{Leftover capacity under FGD on 720 random-hour snapshots, as a share of all GPUs. ``Usable'' means a whole free GPU with 8 free CPU cores. Gains are over FGD with original requests, with 95\% cluster-bootstrap intervals.}
+\label{tab:emulator}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Placement and sizing & Whole free GPUs & Usable & Gain in usable (points) \\
+\midrule
+Trace placement, all pods counted & 4.1\% & 2.8\% & -- \\
+Trace placement, HP pods only & 23.4\% & 21.1\% & -- \\
+\midrule
+FGD, original requests & 23.2\% & 22.0\% & -- \\
+FGD, A1 & 23.9\% & 22.6\% & $+0.6$ (0.1--1.4) \\
+FGD, A1 + CPU co-sizing & 23.9\% & 22.7\% & $+0.7$ (0.1--1.6) \\
+FGD, hourly-need ceiling & 38.9\% & 31.5\% & $+9.5$ (7.8--19.8) \\
+FGD, ceiling + CPU co-sizing & 40.6\% & 40.3\% & $\mathbf{+18.3}$ (12.6--38.2) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\finding{The simulator fits the trace.} With original requests, FGD leaves only 0.03 pods per snapshot unplaced and leaves 22.0\% of GPUs usable, against 21.1\% in the trace's own placement (\cref{tab:emulator}). Total free capacity is equal by construction, so this tests fragmentation and feasibility rather than allocation. The causes of unusable capacity agree with ASI's fragmentation analysis~\citep{li2026asi} in two respects: fractional residue is negligible (0.4--2.2\% of free GPU), and insufficient CPU dominates for the 1G8C and 8G128C job profiles. They differ in one: for the 4-GPU profiles, insufficient CPU slightly exceeds multi-GPU shortfall.
+
+\finding{How capacity is counted matters more than any policy.} Counting every pod as an occupant, as the capacity replay does, leaves 2.8\% of GPUs usable; counting only HP pods leaves 21.1\%. Most of the difference is capacity held by preemptible and best-effort pods, which ASI already uses to harvest idle reservations~\citep{li2026asi}. The 3.8\% in \cref{sec:q5} therefore measures reuse when freed capacity competes with those pods. It is a lower bound, not the reusable share for guaranteed work. We have not re-run the capacity replay with HP-only accounting.
+
+\finding{A1's gain is real but small.} A1 adds 0.6 points of usable GPUs, because it resizes only the test pods it has a prediction for, about 6\% of HP pods.
+
+\finding{Without CPU co-sizing, much of the freed GPU is stranded.} The hourly-need ceiling frees 15.7 points of whole GPUs, but only 9.5 points are usable with 8 cores each. Scaling CPU with the slice makes almost all of it usable ($+18.3$ points). This is the simulator counterpart of the insufficient-CPU limit in \cref{sec:q5}. Spike hours give the same results (A1 $+0.6$, ceiling $+9.2$, ceiling with CPU co-sizing $+17.5$).
+
+\begin{table}[t]
+\centering\small
+\caption{Placement policies on 240 random-hour snapshots, three seeds each. Net usable charges unplaced GPU demand against leftover usable GPUs, as a share of all GPUs. The gain is in usable GPUs from original requests to the hourly-need ceiling, with 95\% cluster-bootstrap intervals.}
+\label{tab:policies}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+Policy & \makecell{Unplaced GPU\\demand} & \makecell{Net usable,\\original} & \makecell{Net usable,\\ceiling} & \makecell{Gain\\(points)} \\
+\midrule
+FGD & 0.0\% & \textbf{22.9\%} & 32.4\% & $+9.5$ (7.7--19.8) \\
+GpuClustering & 15.6\% & \textbf{22.9\%} & \textbf{32.7\%} & $+4.8$ (3.6--9.3) \\
+BestFit & 0.6\% & 22.5\% & 31.4\% & $+8.5$ (6.9--12.3) \\
+GpuPacking & 0.1\% & 22.5\% & 31.2\% & $+8.7$ (7.2--12.3) \\
+DotProd & 5.0\% & 22.4\% & 30.8\% & $+8.3$ (6.9--11.8) \\
+Random & 15.6\% & 20.0\% & 24.2\% & $+3.9$ (2.5--9.1) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\finding{Sizing matters more than placement policy.} GpuClustering, DotProd and Random leave 5--16\% of GPU demand unplaced, which makes their leftover capacity look larger than it is, so \cref{tab:policies} charges unplaced demand against it. With original requests, the five non-random policies are within 0.6 points of each other, and the hourly-need ceiling adds 8--10 points under each. FGD leaves the least demand unplaced and ties for the most usable capacity. One cluster has uniform 2-GPU servers, and FGD still leads there; with three ASWs this is only a hint.
 
 % ===========================================================================
-\input{sections/comparison}
+\section{Related Work}
+\label{sec:related}
 
-% ===========================================================================
-\input{sections/value}
+\paragraph{Evaluation under distribution shift.} \citet{gulrajani2021search} and \citet{koh2021wilds} are our methodological references (\cref{tab:mapping}). They evaluate predictive performance, while our ladder continues to decision outcomes on a domain where the prediction is consumed by a scheduler. Conformal methods~\citep{romano2019cqr,angelopoulos2021gentle} provide our margins, and our results show the exchangeability assumption failing across clusters.
 
-% ===========================================================================
-\input{sections/experiments}
+\paragraph{Workload prediction and autoscaling.} Autopilot~\citep{rzadca2020autopilot} and Resource Central~\citep{cortez2017resource} show that history-based prediction works at scale. Helios~\citep{hu2021helios} and ASI~\citep{li2026asi} characterize GPU clusters. Our finding that a history rule is hard to beat under shift is consistent with those deployments.
+
+\paragraph{GPU fragmentation and sharing.} FGD~\citep{weng2023fgd} targets fragmentation in GPU-sharing clusters, and ASI reports that fractional fragmentation is negligible in its fleet because GPU sharing is rarely used. Right-sizing would create those fractional allocations, which is why residue appears in our replay. We use FGD's open-source simulator for the repacking study in \cref{sec:q6}. Interference-aware systems~\citep{strati2024orion,xu2022igniter,shubha2024usher} study the safety of sharing, which a trace cannot observe.
 
 % ===========================================================================
 \section{Limitations}
 \label{sec:limitations}
 
 \begin{itemize}
-  \item \textbf{No latency data.} $U$ is the only safety proxy; the trace has no request-latency or SLO-violation field. We cannot claim SLA neutrality, only that predicted slices cover observed busy-hour demand.
-  \item \textbf{Labels are P90s of hourly averages.} Telemetry is sampled every 20 seconds, so true peaks are higher. \Cref{sec:peak} bounds the hour-level part of this (covering each pod's spike-hour maximum keeps 82\% of the opportunity) and E9 measures it with real predictions (14.3\% at P99, 12.9\% at the hourly maximum, \cref{sec:e9}), but sub-hour bursts remain invisible.
-  \item \textbf{History-feature leakage (resolved).} E9 rebuilt the history features from pods finished before admission; the effect was small (0.3 points of reclaim, \cref{sec:e9}). The E6 hybrid has not yet been re-run on the clean features.
-  \item \textbf{Reclaiming needs a mechanism.} The operator reports GPU sharing is rarely used because isolation is weak, and its own SpotGPU mechanism already raises allocation from 68\% to 93\%. How reclaimed slices would be consumed is open.
-  \item \textbf{No host topology.} The trace has no per-server NUMA layout, PCIe-switch placement or PCIe-traffic counters. Like most production schedulers (\cref{sec:hosttopo}), we cannot model PCIe bandwidth or NUMA alignment as resources, so host-side contention is folded into the noise of $Y_{\text{MVF}}$ and $Y_{\text{READY}}$.
-  \item \textbf{Counterfactual blindness.} The trace records what was allocated, not what would have happened at a smaller size; Model B extrapolates.
-  \item \textbf{External validity.} One operator, one six-month window and 10 usable held-out clusters. Model identities are anonymized.
+  \item \textbf{Replication.} DomainBed repeats its full sweeps three times with new random choices, and WILDS uses at least three replicates. We report one pipeline run per configuration, with paired tests across clusters.
+  \item \textbf{ID comparison is not test-to-test.} WILDS recommends measuring in-distribution performance on the test distribution. Our seen-cluster results use future days across clusters rather than the 10 held-out clusters themselves.
+  \item \textbf{No latency data.} $U$ and short pod-hours are proxies, and the trace has no request-latency field. Usage was recorded with the full GPU available, so a shortfall's true effect is not observed.
+  \item \textbf{Hourly resolution and P90 replays.} Sub-hour bursts are invisible, and the replays used slices built on the P90 label, so they are probably slightly optimistic for a memory-peak-safe policy.
+  \item \textbf{Test days have been reused.} H5--H10 are exploratory, and H11 and H12 had rules set before running on days already used. No later days remain for a fresh holdout.
+  \item \textbf{Simulator scope.} The simulator models CPU and GPU but not memory, places static snapshots without arrivals or departures, and keeps pods within their ASW. The hourly-need ceiling uses hourly averages. Random placement is not bit-for-bit reproducible, because the simulator draws random numbers during parallel scoring.
+  \item \textbf{One operator.} All results come from one six-month trace with 10 usable held-out clusters.
 \end{itemize}
-
-% ===========================================================================
-\section{Plan and Timeline}
-\label{sec:timeline}
-
-Phases 0--5 of the original plan (data, datasets, baselines, Model A, Model B, composition) are complete; interpretation is done for Model A. E6--E8 were completed in the follow-up round (\cref{sec:followup}). \Cref{fig:gantt} lays out the remaining work.
-
-\begin{figure}[h]
-\centering
-\resizebox{\linewidth}{!}{%
-\begin{ganttchart}[
-  hgrid, vgrid={*1{dotted}},
-  x unit=1.0cm, y unit chart=0.55cm,
-  title height=1,
-  bar/.append style={fill=accent!70,draw=accent},
-  milestone/.append style={fill=warn,draw=warn},
-  group/.append style={fill=black!60},
-  bar label font=\small, group label font=\small\bfseries,
-  milestone label font=\small\itshape
-]{1}{8}
-\gantttitle{Weeks from Oct 26, 2026}{8} \\
-\gantttitlelist{1,...,8}{1} \\
-\ganttgroup{Fix foundations}{1}{2} \\
-\ganttbar{E9 leakage-free history; P99 labels}{1}{2} \\
-\ganttbar{Re-run A1/A3 gate on fixed data}{2}{2} \\
-\ganttgroup{New signals}{2}{5} \\
-\ganttbar{E1 workload-mixing features}{2}{4} \\
-\ganttbar{E2 compatibility; E3 prod/non-prod}{3}{4} \\
-\ganttbar{E4 runtime patterns (cold start)}{4}{5} \\
-\ganttgroup{Policies}{5}{6} \\
-\ganttbar{E5 per-segment safety budgets}{5}{6} \\
-\ganttmilestone{Results freeze}{6} \\
-\ganttgroup{Write-up}{7}{8} \\
-\ganttbar{Compress to page limit; final report}{7}{8} \\
-\ganttbar{Stretch: Tier 2/3 transfer \& simulator}{7}{8}
-\end{ganttchart}}
-\caption{Remaining work. Stretch items are cut first if time runs short.}
-\label{fig:gantt}
-\end{figure}
 
 % ===========================================================================
 \section{Conclusion}
 \label{sec:conclusion}
 
-The headline is a useful negative result wrapped around a positive one. \emph{Positive:} at a 5\% under-provisioning budget, about a fifth of reserved online-inference GPU-hours is reclaimable on clusters never seen in training, concentrated in recommendation pods with history. \emph{Negative:} a learned model does not beat a per-workload history rule on accuracy; most of the value is reachable with a rule an operator could deploy this week, and ML's marginal value is confined to cold-start pods. The follow-up round makes this concrete: routing warm pods to the rule and cold-start pods to the learned model is the best policy found (22.6\% at matched risk, worst-cluster $U$ 2.5\%). A peak-hour check (\cref{sec:peak}) shows the opportunity is mostly steady headroom: about 80\% of it holds when every pod must cover its spike-hour demand, so a peak-safe scheduler could expect roughly 15--17\% rather than 21\%. E9 (\cref{sec:e9}) measured this directly: with the history leak removed the headline stays at 21\%, and labels sized for each pod's P99 or busiest hour give 14.3\% and 12.9\%, with the history rule ahead of XGBoost. \emph{Open:} the placement-risk side, because the trace barely contains the fractional allocations a right-sizing policy would create.
-
-Compared to commercial schedulers, this gap is expected rather than embarrassing: production systems own the actuation path (MIG, MPS, time-slicing, live resize), observe latency, and can run controlled experiments, while a trace-based study can only estimate the \emph{opportunity}. The next round of work targets the gaps that modelling can close (leakage, labels, workload-mixing and runtime features, per-cluster calibration, segment-specific safety budgets) and documents honestly the ones it cannot.
-
-\paragraph{Open invitation.} The gaps that modelling cannot close are data gaps: latency or SLO labels, controlled resize outcomes, and fleets other than Alibaba's. We are actively looking for advisors, reviewers and data partners to close them. A partner would receive the full pipeline (loader, feature builders, leave-one-cluster-out harness and the pre-registered go/no-go gate) so results on new data are directly comparable to the ones reported here. Contact \href{mailto:pqo14@txstate.edu}{\texttt{pqo14@txstate.edu}} or open an issue or discussion at \url{https://github.com/Tar-ive/predictive-gpu-right-sizing}.
+On clusters it has not seen, a learned right-sizing model fails to beat a per-workload history rule, and the safety margin moves savings about five times more than the model does. A fifth of reserved GPU-hours is over-reserved at a 5\% risk budget, and a six-hour fallback removes most of the remaining hourly risk. The decisive result is at the end of the ladder: only 3.8\% of freed GPU-hours can serve another job under today's placement, when preemptible pods count as occupants. A scheduler simulator shows that how pods are sized, and whether their CPU shrinks with them, matters far more than which placement policy repacks them. More investment in GPU prediction targets the wrong constraint. The path to real savings is to size GPU and CPU together.
 
 \bibliographystyle{plainnat}
 \bibliography{refs}
 
 % ===========================================================================
 \appendix
-\section{Research Trail (Chronological)}
-\label{app:trail}
+
+\section{Hypothesis Verdicts}
+\label{app:verdicts}
+
+H1--H4 were pre-registered before modelling. H5--H10 were written after the test days were seen and are exploratory. H11 and H12 had rules fixed before running, on test days already used.
+
+{\small
+\begin{longtable}{@{}P{0.7cm}P{2.3cm}P{6.1cm}P{3.8cm}@{}}
+\caption{Hypothesis verdicts and evidence.}\label{tab:verdicts}\\
+\toprule
+ID & Verdict & Evidence & What it means \\
+\midrule
+\endfirsthead
+\toprule
+ID & Verdict & Evidence & What it means \\
+\midrule
+\endhead
+H1 & \textbf{Rejected} & A3 better in 4 of 10 clusters, $p = 0.81$. Short pod-hours favour A1 (0.44\% vs.\ 1.39\%). Leak-free: 21.0\% vs.\ 20.8\% at matched risk; A1 wins under peak-aware labels. & The history rule is the right baseline on unseen clusters. \\
+H2 & \textbf{Partly supported} & ROC-AUC 0.75, ECE 0.05 on seen clusters; 0.65 and 0.12 on unseen clusters. & Probabilities should not be trusted on a new cluster. \\
+H3 & \textbf{Supported} & 11.0\% to 14.3\% at pre-registered margins; about 21\% at matched risk; 12.9--14.3\% with peak-aware labels. & Over-reservation is real, but reclaimable is not reusable (H12). \\
+H4 & \textbf{Partly supported} & Accuracy roughly holds; coverage falls to 92\%; Model B's probabilities do not transfer. & Sizing transfers better than risk estimates. \\
+H5 & \textbf{Mostly not supported} & No difference in need ($-0.003$, $p = 0.75$) or accuracy with controls. Steadier need within 77 workloads only ($p = 0.004$). Model B half not run. & Server mix is not worth adding to Model A. \\
+H6 & \textbf{Not supported} & Logistic + cell: PR-AUC $+0.012$, 8 of 10, $p = 0.10$. LightGBM + cell rates: $-0.026$, 3 of 10. & Cell failure rates do not transfer. \\
+H7 & \textbf{Supported for Model B failure rate only} & Low-priority pods fail 21.6 points more often ($p = 0.002$). Model A untestable (99.9\% high-priority). Server-mix clause not tested. & Priority matters for placement, almost entirely in GenAI pods. \\
+H8 & \textbf{Not supported} (reframed) & Raising to the early peak cut shortfalls by 8--34\%; resizing left 15--32\% of pod-hours short. & Early-life use under-represents later demand. \\
+H9 & \textbf{Not tested as stated} & Per-group margins freed 5--6.5 points more at deployable risk; no harm-weighted comparison was run. & Open. \\
+H10 & \textbf{Promising} & 22.6\% vs.\ 20.7\%, $p = 0.014$, about 0.11 after Holm correction. Not re-run on leak-free features. & Candidate policy; edge not established. \\
+H11 & \textbf{Supported} & A1, $k = 6$: short pod-hours 0.93\% \ra 0.18\%, 95\% of savings kept. & A fallback makes the rule safer at little cost. \\
+H12 & \textbf{Rejected} & 3.8\% usable; 30\% ignoring CPU; 1.2\% without sharing; threshold 50\%. Counts preemptible and best-effort pods as occupants; with HP pods only, 21\% of GPUs are already free and usable (\cref{sec:q6}). & CPU and residue limit realized savings; the 3.8\% is a lower bound. \\
+\bottomrule
+\end{longtable}
+}
+
+\section{Additional Replay Results}
+\label{app:replay}
 
 \begin{table}[H]
 \centering\small
-\begin{tabularx}{\linewidth}{@{}p{2.4cm}L@{}}
+\caption{Hourly shortfalls on 10 unseen clusters, with the full request and an oracle slice ($s = y$) as references. The oracle runs short often because $y$ is a P90 target; deployed models add margin and rounding on top.}
+\label{tab:hourly}
+\begin{tabular}{@{}lccccc@{}}
 \toprule
-When & Step \\
+& \multicolumn{2}{c}{Pod-hours short} & \multicolumn{2}{c}{Memory short} & Pods short \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}
+Model & Mean & Worst & Mean & Worst & at least once \\
 \midrule
-Early Sep 2026 & Topic chosen: can GPU-trace patterns raise utilization without compromising inference latency/SLA? Motivation via utilization identity (\cref{eq:util}). Dataset: ASI trace. Open items: schema, sampling, scope, compute budget. \\
-Mid Sep 2026 & 1--2\% sample used for first visualizations. Scope narrowed to rec + GenAI online inference (supervisor comment). References gathered: OSDI~'26 ASI, Philly traces, Resource Central. \\
-Late Sep 2026 & Day/hour recovery; D1 and D2 built; plan pre-registered (models, splits, LOCO, conformal, go/no-go gate). \\
-Oct 4, 2026 & Progress report: Phases 0--5 done. Model A NO-GO on accuracy gate; $\approx$21\% reclaimable at $U=5\%$; Model B AUC 0.75/0.65; A+B composition as what-if. \\
-Oct 15, 2026 & Follow-up round (v2): hybrid policy, A3 re-tune, rolling-window CV, finer-slice what-if, per-cluster recalibration, Model B with new features (\cref{sec:followup}). \\
-Oct 26, 2026 & Reference audit: the OSDI~'26 PDF link in the early notes (\texttt{osdi26-wu-tianyuan.pdf}) is the WEAVE RL post-training paper; the ASI trace paper is Li et al.~\cite{li2026asi}. Closest prior work to Model B found~\cite{zhang2026ineffective}. \\
-Oct 26, 2026 & This proposal: industry comparison, gap taxonomy, business value, next experiments (E1--E10). \\
+A1 history rule & \textbf{0.44\%} & 1.22\% & \textbf{0.29\%} & 1.19\% & 4.5\% \\
+A2 linear & 0.74\% & 1.75\% & 0.47\% & 1.35\% & 7.1\% \\
+A3 XGBoost & 1.39\% & 5.18\% & 1.03\% & 2.79\% & 7.0\% \\
+Full request & 0.01\% & 0.02\% & 0.01\% & 0.02\% & 1.4\% \\
+Oracle ($s = y$) & 4.54\% & 6.80\% & 1.92\% & 3.31\% & 55.4\% \\
 \bottomrule
-\end{tabularx}
+\end{tabular}
 \end{table}
 
+\begin{table}[H]
+\centering\small
+\caption{Capacity replay by policy. ``Ideal sharing'' packs fractional slices tightly (upper bound); ``no sharing'' gives every fractional slice a whole GPU.}
+\label{tab:capacity}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+Policy & GPU-hours freed & \makecell{Whole free GPUs\\(CPU ignored)} & \makecell{Usable with CPU,\\ideal sharing} & \makecell{Usable,\\no sharing} \\
+\midrule
+A1 + 6\,h fallback & 1.01M & 30\% & \textbf{3.8\%} & 1.2\% \\
+A3 + 24\,h fallback & 1.26M & 31\% & 4.9\% & 0.8\% \\
+A1, no fallback & 1.06M & 30\% & 4.0\% & 1.3\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering\small
+\caption{Where the freed GPU landed (A1 + 6\,h fallback, 10 unseen clusters, time-weighted).}
+\label{tab:usable}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+Cluster & \makecell{Rec share\\of D1 pods} & \makecell{GPU-hours\\freed} & \makecell{Forms\\whole GPUs} & \makecell{Usable\\with CPU} & \makecell{Free GPUs with\\CPU, before} \\
+\midrule
+\texttt{da8d} & 91\% & 218{,}729 & 22\% & 0.6\% & 11\% \\
+\texttt{2f96} & 57\% & 201{,}495 & 27\% & 1.4\% & 73\% \\
+\texttt{6d5f} & 51\% & 179{,}752 & 56\% & 7.3\% & 52\% \\
+\texttt{4d6f} & 84\% & 176{,}012 & 21\% & 0.7\% & 17\% \\
+\texttt{9089} & 49\% & 133{,}916 & 22\% & 5.9\% & 50\% \\
+\texttt{7087} & 56\% & 78{,}447 & 35\% & 15.0\% & 34\% \\
+\texttt{3f39} & 84\% & 13{,}045 & 6\% & 0\% & 55\% \\
+\texttt{8753} & 34\% & 10{,}182 & 7\% & 0\% & 52\% \\
+\texttt{1f28} & 59\% & 6 & -- & -- & 63\% \\
+\texttt{27dc} & 56\% & 0 & -- & -- & 60\% \\
+\midrule
+\textbf{All 10} & & \textbf{1{,}011{,}584} & \textbf{29.5\%} & \textbf{3.8\%} & \textbf{54\%} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Cluster drivers (exploratory).} Under deployable margins, A1's savings range from 0\% to 25\% across clusters and track the share of pods with workload history (Spearman $\rho = +0.88$). At matched risk they range from 8\% to 28\% and track the share of recommendation pods ($\rho = +0.79$).
+
+\section{Preliminary: Incumbent Scheduler Rules}
+\label{app:schedulers}
+
+An unmerged analysis replays sizing rules recovered from the release binaries of six open-source GPU schedulers (VPA, kube-scheduler, KAI, HAMi, Volcano, Koordinator) on 22 days of the trace. All six size GPUs from what the user declares, so the deployed incumbent reclaims nothing, and a fixed factor such as 85\% snaps back to a whole GPU on the slice grid. On clusters seen in training, 90--95\% of each policy's reclaim survives cluster-level packing when server and CPU limits are ignored. Together with \cref{sec:q5}, this suggests that server and CPU limits, not packing itself, account for much of the loss. These numbers are preliminary: the window is short, pods still running at its end have truncated labels, the recovered constants have not been cross-checked against source, and VPA has not been evaluated on unseen clusters. We therefore do not report its model comparisons here.
+
 \section{Reproducibility}
-All figures are regenerated by \texttt{scripts/make\_figures.py} from the numbers reported in \cref{sec:results}; no figure in this document reports a \status{proposed} experiment. The proposal compiles with \texttt{tectonic main.tex}.
+\label{app:repro}
+
+The leakage-free rebuild, gate runner and peak-hour analysis are in \url{https://github.com/Tar-ive/predictive-gpu-right-sizing} under \texttt{code/}. The hourly, fallback, capacity and H5--H7 results were first reported in the project's Nov 8, 2026 progress report; their analysis code is in \texttt{phase2\_hourly\_analysis/} and runs on Snowflake. The simulator study is in \texttt{code/emulator/} (branch \texttt{emulator-snapshot-replay}), with the simulator patch, tests and summary results; it reads the public trace directly. No trace data is included. The complete research trail, including industry comparison, business value and experiment designs, is available in \texttt{main\_research\_trail.pdf}.
 
 \end{document}

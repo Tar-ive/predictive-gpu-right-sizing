@@ -1,0 +1,204 @@
+\subsection{Hour-by-hour safety replay (Nov 8, 2026)}
+\label{sec:hourly}
+
+$U$ scores each pod once, so it cannot say how often a pod actually runs short. This replay compared each test pod's final slice (after the safety margin and rounding to a real slice size) with its actual compute and memory use in every hour it ran (days 158--184, about 9.0M pod-hours on unseen clusters). Rebuilding $Y_{\text{MVF}}$ from these hours matched D1 closely (correlation 0.9975; 95.8\% of pods within 0.01), so hourly need is measured on the same basis as the target. Two references are shown: the full request (today's allocation) and an oracle slice equal to $Y_{\text{MVF}}$. No pass/fail threshold was set in advance, so the replay is descriptive.
+
+\begin{table}[H]
+\centering\small
+\caption{Hourly shortfalls on 10 unseen clusters. ``Short'' means the slice was below actual compute or memory use in that hour. Pod-hour columns are means over clusters.}
+\label{tab:hourly}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+& \multicolumn{2}{c}{Pod-hours short} & \multicolumn{2}{c}{Memory short} & Pods short \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}
+Model & Mean & Worst cluster & Mean & Worst cluster & at least once \\
+\midrule
+A1 history rule & \textbf{0.44\%} & 1.22\% & \textbf{0.29\%} & 1.19\% & 4.5\% \\
+A2 linear & 0.74\% & 1.75\% & 0.47\% & 1.35\% & 7.1\% \\
+A3 XGBoost & 1.39\% & 5.18\% & 1.03\% & 2.79\% & 7.0\% \\
+Full request & 0.01\% & 0.02\% & 0.01\% & 0.02\% & 1.4\% \\
+Oracle (slice = $Y_{\text{MVF}}$) & 4.54\% & 6.80\% & 1.92\% & 3.31\% & 55.4\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering\small
+\caption{Shortfalls are concentrated in a few persistent pods (43{,}359 pods on unseen clusters, pooled).}
+\label{tab:persist}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+Model & Pods ever short & \makecell{Short $\ge$24\,h\\in a row} & \makecell{Short $\ge$1 week\\in a row} & \makecell{Share of short hours\\from the 24\,h+ pods} \\
+\midrule
+A1 & 2{,}275 & 203 (0.47\%) & 67 & 66\% \\
+A2 & 3{,}302 & 239 (0.55\%) & 82 & 52\% \\
+A3 & 3{,}215 & 498 (1.15\%) & 182 & 73\% \\
+Oracle & 23{,}941 & 996 (2.3\%) & 0 & 12\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{itemize}
+  \item \textbf{Per-pod scoring understated exposure.} 4.5\% (A1) and 7.0\% (A3) of pods were short in at least one hour, against $U$ of 0.7\% and 2.0\%. Pods short in more than 10\% of their hours (0.9\% and 2.1\%, pooled) are close to $U$, which is consistent with how $U$ is defined.
+  \item \textbf{Memory causes most shortfalls.} 69\% of A1's and 74\% of A3's short hours involve GPU memory, where a shortfall can crash a pod rather than slow it.
+  \item \textbf{Two kinds of failure.} The typical shortfall lasts 2 hours and is about 0.1 GPU. The longest last 627--648 hours, nearly the whole test window, so some pods were sized too small from the start.
+  \item \textbf{A3 trades safety for savings.} It frees more GPU than A1 (14.3\% vs.\ 11.0\%) with about three times the short hours and 2.5 times as many persistently short pods. Cluster \texttt{6d5f}, where A3's $U$ was weakest (7.6\%), is the only case where a model fell short more often than the oracle (5.2\% vs.\ 4.6\%).
+  \item \textbf{Today's allocation is not zero-risk.} 1.4\% of pods exceeded their full request in at least one hour.
+\end{itemize}
+
+\paragraph{Interpretation.} The replay adds a safety argument to the accuracy argument for the history rule: A1 is not only as accurate as A3 on unseen clusters, it is about three times safer per pod-hour. The oracle's high shortfall rate is expected, because $Y_{\text{MVF}}$ is a P90-style target that a pod can exceed in some hours; the deployed models fall short less often since safety margins and rounding up to a coarse slice grid add slack on top of it. Two different problems therefore hide inside the shortfall number. Brief, small overruns are the routine cost of sizing to a percentile. Persistent shortfalls come from about 1\% of pods that were mis-sized at admission and account for most short hours under A1 and A3. A better average predictor addresses neither directly, but a policy that reacts to sustained overruns addresses the second, which the next test evaluates.
+
+\subsection{Fallback and early-resize policies (H11, H8)}
+\label{sec:fallback}
+
+The fallback restores a pod's full request after it has run short for $k$ hours in a row. The selection rule was set before running (Nov 8, 2026): settings were chosen on unseen-cluster pods admitted on days 158--170 and reported once on pods admitted on days 171--183. A setting qualifies if it cuts short pod-hours by at least 50\% and keeps at least 80\% of the freed GPU-hours, both against no fallback; among qualifying settings, the one freeing the most is chosen.
+
+\begin{table}[H]
+\centering\small
+\caption{Fallback results on the report half (unseen-cluster pods admitted on days 171--183, pooled across the 10 clusters, which is why the ``before'' values differ from the cluster means in \cref{tab:hourly}). All three settings meet the pre-set rule.}
+\label{tab:fallback}
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+Model & Setting & Short pod-hours & Cut & Memory short & Freed GPU-hours & Kept \\
+\midrule
+A1 & $k=6$\,h & 0.93\% \ra 0.18\% & 81\% & 0.77\% \ra 0.05\% & 11.95\% \ra 11.40\% & 95\% \\
+A2 & $k=6$\,h & 1.01\% \ra 0.23\% & 77\% & 0.72\% \ra 0.06\% & 11.59\% \ra 10.91\% & 94\% \\
+A3 & $k=24$\,h & 1.82\% \ra 0.59\% & 67\% & 1.54\% \ra 0.32\% & 14.24\% \ra 13.67\% & 96\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{itemize}
+  \item \textbf{The worst cluster improves most.} A1's worst cluster falls from 3.23\% to 0.44\% short pod-hours, and A3's from 3.63\% to 1.78\%.
+  \item \textbf{The rule holds pooled, not in every cluster.} The cut is below 50\% in some clusters, for example 20\% in \texttt{4d6f} and 36\% in \texttt{6d5f} for A1.
+  \item \textbf{A3's setting.} A3 at $k=6$ would do better on the report half (85\% cut, 93\% kept), but $k=24$ was chosen by the rule and stays the primary result.
+  \item \textbf{Early-life usage is a poor guide (H8, exploratory).} Raising the slice to the peak of the first 6 or 24 hours cut shortfalls by only 8--34\%, failing the rule. Resizing to that peak, up or down, left 15--32\% of pod-hours short, because pods use much less in their first hours than later.
+\end{itemize}
+
+\paragraph{Interpretation.} H11 is supported. The fallback is cheap because shortfalls are concentrated: returning a small number of persistently short pods to their full request removes most short hours and gives back only about 5\% of the savings. This is consistent with why A1 does well: a workload's sustained behaviour appears to be more informative than admission features. The early-life result points the same way from the other side: the first hours of a pod's life do not represent its later demand, so the resize-after-warm-up idea behind H8 does not hold in this form. The fallback does assume a mechanism that can grow a pod in place or restart it cheaply, and it is reactive: a memory shortfall could crash a pod before six hours pass, so the replay's reduction is what-if and may flatter what a live system would see.
+
+\subsection{Why savings differ by cluster (exploratory)}
+\label{sec:clusterdrivers}
+
+Under deployable margins, A1's savings range from 0\% to 25\% across the 10 clusters and track the share of test pods with workload history (Spearman $\rho = +0.88$; A3 $+0.85$). At matched 5\% risk they range from 8\% to 28\% and track the share of recommendation pods ($\rho = +0.79$; A3 $+0.78$). In the two clusters where almost no pods have history (\texttt{27dc} and \texttt{1f28}), A1 frees 0\% under its deployable margins, although 11--16\% is reclaimable at matched risk.
+
+\paragraph{Interpretation.} Recommendation share sets how much is theoretically available; workload history determines how much a safe policy can actually take. Cold-start pods receive wide margins, which is the main brake on realized savings, so a newly onboarded cluster should be expected to free little until history accumulates. This analysis is exploratory: there are 10 clusters, several correlations were tested, and recommendation share and median need are closely linked ($\rho = -0.92$).
+
+\subsection{Capacity replay: is the freed GPU usable? (H12)}
+\label{sec:capacity}
+
+Reclaimed GPU-hours are only valuable if another job can run on them. For each hour of days 158--184, pods stayed on the servers they actually ran on in the 10 unseen clusters (37{,}832 servers in the inventory). Test pods were shrunk to their predicted slices and all other pods kept their requests. Each pod-hour was weighted by the share of the hour the pod was present, because short-lived batch pods otherwise made servers look over-allocated; weighting brought allocation from 115\% to 97.8\% of capacity. A freed slice counts as usable only if it completes a whole free GPU on that server and the server has enough free CPU for a new job needing the cluster's median CPU per GPU. The rule set before running (Nov 8, 2026) required at least 50\% of freed GPU-hours to become usable.
+
+\begin{table}[H]
+\centering\small
+\caption{Capacity replay. ``Ideal sharing'' packs fractional slices tightly onto shared GPUs (upper bound); ``no sharing'' gives every fractional slice a whole GPU, close to current practice.}
+\label{tab:capacity}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+Policy & GPU-hours freed & \makecell{Become whole free\\GPUs (CPU ignored)} & \makecell{Usable with CPU,\\ideal sharing} & \makecell{Usable,\\no sharing} \\
+\midrule
+A1 + 6\,h fallback & 1.01M & 30\% & \textbf{3.8\%} & 1.2\% \\
+A3 + 24\,h fallback & 1.26M & 31\% & 4.9\% & 0.8\% \\
+A1, no fallback & 1.06M & 30\% & 4.0\% & 1.3\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering\small
+\caption{From reclaimable to usable, for A1 with the 6-hour fallback at deployable margins, per 1{,}000 reserved GPUs (8.76M GPU-hours a year). The bottom two rows apply the capacity-replay fractions to the 11.4\% row.}
+\label{tab:chain}
+\begin{tabularx}{\linewidth}{@{}Lccp{4.5cm}@{}}
+\toprule
+Level & Share & GPUs' worth & Source \\
+\midrule
+Reclaimable at matched 5\% risk, A1 (exploratory) & 20.8\% & 208 & Matched-risk analysis \\
+Reclaimable, A1 + 6\,h fallback & 11.4\% & 114 & \Cref{tab:fallback}, report half \\
+\quad\ldots forms whole free GPUs (CPU ignored) & 3.4\% & 34 & 29.5\% of freed GPU-hours \\
+\quad\ldots usable by a new job with enough host CPU & 0.4\% & 4 & 3.8\% of freed GPU-hours \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering\small
+\caption{Where the freed GPU landed (A1 + 6\,h fallback, 10 unseen clusters, time-weighted).}
+\label{tab:usable}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+Cluster & \makecell{Rec share\\of D1 pods} & \makecell{GPU-hours\\freed} & \makecell{Freed that forms\\whole GPUs} & \makecell{Freed usable\\with CPU} & \makecell{Free whole GPUs with\\CPU, before shrinking} \\
+\midrule
+\texttt{da8d} & 91\% & 218{,}729 & 22\% & 0.6\% & 11\% \\
+\texttt{2f96} & 57\% & 201{,}495 & 27\% & 1.4\% & 73\% \\
+\texttt{6d5f} & 51\% & 179{,}752 & 56\% & 7.3\% & 52\% \\
+\texttt{4d6f} & 84\% & 176{,}012 & 21\% & 0.7\% & 17\% \\
+\texttt{9089} & 49\% & 133{,}916 & 22\% & 5.9\% & 50\% \\
+\texttt{7087} & 56\% & 78{,}447 & 35\% & 15.0\% & 34\% \\
+\texttt{3f39} & 84\% & 13{,}045 & 6\% & 0\% & 55\% \\
+\texttt{8753} & 34\% & 10{,}182 & 7\% & 0\% & 52\% \\
+\texttt{1f28} & 59\% & 6 & -- & -- & 63\% \\
+\texttt{27dc} & 56\% & 0 & -- & -- & 60\% \\
+\midrule
+\textbf{All 10} & & \textbf{1{,}011{,}584} & \textbf{29.5\%} & \textbf{3.8\%} & \textbf{54\%} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{itemize}
+  \item \textbf{H12 is rejected, and not because of the CPU assumption.} Even ignoring CPU, 30\% is below the 50\% threshold. With CPU, 3.8\% is usable; without GPU sharing, 1.2\%.
+  \item \textbf{Freed GPU is fragmented.} A pod cut from 1.0 to 0.5 GPU frees half a GPU, and only about 30\% of freed slices add up to whole free GPUs on the same server.
+  \item \textbf{The clusters freeing the most are the most CPU-starved.} \texttt{da8d} and \texttt{4d6f} produced 39\% of all freed GPU-hours but only about 6\% of the usable gain, because only 11--17\% of their free whole GPUs had enough CPU even before any shrinking. This matches ASI's finding that CPU shortage leaves up to 28\% of idle GPUs unallocatable~\cite{li2026asi}.
+  \item \textbf{Even with CPU available, fragments limit reuse.} In \texttt{2f96}, 73\% of free GPUs had CPU, yet only 1.4\% of freed GPU-hours became usable. Across all 10 clusters, recommendation share alone does not predict CPU availability ($\rho = -0.20$, $p = 0.59$); the effect is concentrated in \texttt{da8d} and \texttt{4d6f}.
+  \item \textbf{The design is conservative.} Pods are never moved between servers, a new job is assumed to need typical CPU, and only test pods are shrunk, so freed GPU-hours are 1.2\% of the clusters' capacity. About 7\% of server-hours still exceed their GPU count after weighting and are treated as full.
+\end{itemize}
+
+\paragraph{Interpretation.} This is the most consequential result in the paper. Shrinking a pod releases GPU, but its CPU request does not shrink, and a new job needs a whole free GPU and its usual CPU on the same server. As a result, the reclaimable share (11--21\%) is an estimate of over-reservation rather than of capacity an operator can resell, and on current placement the two differ by more than an order of magnitude. Because the binding constraints are CPU on recommendation-heavy servers and fragmentation, \emph{a better GPU predictor alone cannot deliver the savings}, which agrees with the \textsc{no-go}: further modelling effort on $Y_{\text{MVF}}$ is aimed at the wrong bottleneck. The 3.8\% should nonetheless be read as a floor on what a redesigned system could do, since shrinking only test pods and forbidding repacking both limit how often fragments can combine. Three untested levers would close the gap: right-sizing CPU requests together with GPU, placing CPU-light jobs such as GenAI inference on freed GPUs (which would move usable capacity toward the 29.5\% upper bound), and repacking pods across servers so fragments combine where CPU is free.
+
+\subsection{Workload mixing, compatibility and priority (H5--H7, exploratory)}
+\label{sec:mixing}
+
+All three hypotheses were tested after the test days had been seen, so they are exploratory. Decision rules for H6 and H7 were fixed before running (Nov 8, 2026).
+
+\paragraph{H5, workload mixing (test days, 24{,}394 recommendation pods).} Each pod's server mix was measured in the hour before admission, weighted by time present: recommendation-dominated ($\ge$80\% of GPU use), mixed with GenAI ($\ge$20\%), or other.
+
+\begin{table}[H]
+\centering\small
+\caption{H5: recommendation-dominated vs.\ GenAI-mixed servers, controlling for cluster $\times$ GPU type.}
+\label{tab:h5}
+\begin{tabularx}{\linewidth}{@{}p{4.3cm}Lp{1.5cm}@{}}
+\toprule
+Comparison & Result & Supported? \\
+\midrule
+Lower need on rec-dominated servers & Raw medians 0.241 and 0.238; adjusted difference $-0.003$ ($p = 0.75$), $-0.001$ within the same workload ($p = 0.77$). & No \\
+Better A1/A3 accuracy or fewer shortfalls & Raw gaps (A1 pinball 0.032 vs.\ 0.036; short pod-hours 0.54\% vs.\ 1.01\%) vanish with controls ($p = 0.26$--$0.68$). & No \\
+Steadier need within a workload & 77 workloads with $\ge$5 pods in both settings vary about 3$\times$ more when placed with GenAI (median SD 0.054 vs.\ 0.017, $p = 0.004$); not significant across all workloads ($p = 0.24$). & Weak, partial \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\noindent Because server mix relates to neither need nor accuracy, retraining Model A with mix features on days 14--157 (about 300\,GB more data) was judged not worth running, and the Model B half of H5 was not tested.
+
+\paragraph{H6, compatibility (D2, 10 held-out clusters).} Supported only if unseen-cluster PR-AUC rises by $\ge$0.02 and the arm wins in $\ge$7 of 10 clusters with Wilcoxon $p \le 0.05$. Both arms were limited to 300{,}000 training rows and fixed LightGBM settings. The baseline LightGBM reproduced the notebook's unseen-cluster score (PR-AUC 0.616 vs.\ 0.615).
+
+\begin{table}[H]
+\centering\small
+\caption{H6: adding the workload $\times$ GPU type $\times$ size combination to Model B.}
+\label{tab:h6}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+Comparison & PR-AUC change & Clusters better & $p$ & Rule met \\
+\midrule
+Logistic + three-way cell vs.\ main effects only & $+0.012$ & 8 of 10 & 0.10 & No \\
+LightGBM + smoothed cell failure rates & $-0.026$ & 3 of 10 & 0.90 & No \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{H7, production vs.\ non-production.}
+\begin{itemize}
+  \item \textbf{Model A: not testable.} 99.9\% of right-sizing test pods are high-priority. The priority mix of a pod's neighbours made no difference for recommendation pods ($p = 0.94$).
+  \item \textbf{Model B, failure rate: supported.} In D2 (46\% low-priority), within the same cluster, GPU type and model type, low-priority pods fail 21.6 points more often ($p = 0.002$), and adding request size leaves this unchanged. The gap is almost all GenAI (58\% vs.\ 27\%; recommendation 42\% vs.\ 40\%).
+  \item \textbf{Model B, accuracy by priority (descriptive).} LightGBM ranks low-priority pods slightly worse (ROC-AUC 0.61 vs.\ 0.64) and is less well calibrated for them (ECE 0.17 vs.\ 0.12).
+\end{itemize}
+
+\paragraph{Interpretation.} Co-location is not a useful sizing signal here: on these data an operator can interleave recommendation and GenAI pods without changing how much GPU recommendation pods need, with the caveat that the 77-workload result hints at more variable demand when mixed. The combination effect in H6 carries a little signal in a linear model, but LightGBM already learns it, and cell failure rates learned on other clusters do not transfer (PR-AUC fell by 0.12 in two clusters), which is the same transfer failure seen in RQ4. Priority is the one clear new signal, and it is specific: low-priority pods, GenAI pods above all, are where placement fails, and Model B is less well calibrated for low-priority pods. Priority-aware calibration is therefore the natural next improvement to Model B.

@@ -26,7 +26,7 @@ HYB hybrid      & \textbf{0.0242} & 13.3\% & 1.1\% & 94.9\% & 2.5\% & \textbf{22
 \end{table}
 
 \begin{itemize}
-  \item \textbf{The hybrid is the best Model A so far.} It has the lowest pinball loss of any model (better than A1 in 6 of 10 clusters, $p = 0.35$, not significant). At matched $U = 5\%$ it reclaims 22.6\% vs.\ 20.7\% for A1, ahead in 7 of 10 clusters ($p = 0.014$). It keeps A1's tail safety: worst-cluster $U$ is 2.5\%, against 7.3--9.4\% for A3 and A3v2. \textbf{H10 is supported} (exploratory).
+  \item \textbf{The hybrid is the best Model A so far.} It has the lowest pinball loss of any model (better than A1 in 6 of 10 clusters, $p = 0.35$, not significant). At matched $U = 5\%$ it reclaims 22.6\% vs.\ 20.7\% for A1, ahead in 7 of 10 clusters ($p = 0.014$). It keeps A1's tail safety: worst-cluster $U$ is 2.5\%, against 7.3--9.4\% for A3 and A3v2. \textbf{H10 is promising but not established} (exploratory): the matched-risk $p = 0.014$ becomes about 0.11 after Holm correction.
   \item \textbf{Re-tuning A3 does not change the NO-GO.} A3v2 vs.\ A1 on pinball: 4 of 10, $p = 0.84$; vs.\ A3: 5 of 10, $p = 0.58$. At matched risk A3v2 reaches 22.6\% vs.\ A1's 20.7\% ($p = 0.065$). The leakage-free history option did not win the search, which suggests the leak flagged in \cref{tab:failures} moves error less than feared, and E9 (\cref{sec:e9}) has since confirmed it: the strict rebuild moves A3's matched-risk reclaim by only 0.3 points.
 \end{itemize}
 

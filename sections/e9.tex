@@ -18,7 +18,7 @@ E9 was the priority-1 experiment (\cref{tab:expsummary}): every Model A result d
 \toprule
 Variant & A1 $R$ & A2 $R$ & A3 $R$ & A3 wins & Gate \\
 \midrule
-leaky\_p90 (reproduces \cref{tab:modelA}) & 20.8\% & 20.6\% & 21.3\% & 5/10 & \textsc{no-go} \\
+leaky\_p90 (rebuild of \cref{tab:modelA}) & 20.8\% & 20.6\% & 21.3\% & 5/10 & \textsc{no-go} \\
 \textbf{clean\_p90}                        & \textbf{20.8\%} & 20.9\% & \textbf{21.0\%} & 3/10 & \textsc{no-go} \\
 clean\_p99                                 & 14.3\% & 12.1\% & 13.0\% & 2/10 & \textsc{no-go} \\
 clean\_max                                 & 12.9\% & 11.4\% & 12.2\% & 1/10 & \textsc{no-go} \\
@@ -27,10 +27,10 @@ clean\_max                                 & 12.9\% & 11.4\% & 12.2\% & 1/10 & \
 \end{table}
 
 \begin{itemize}
-  \item \textbf{The rebuild reproduces the paper.} leaky\_p90 gives A1 20.8\% (identical) and A3 21.3\% (vs.\ 21.9\%), so the comparisons below are like for like.
+  \item \textbf{The rebuild closely matches the paper.} leaky\_p90 gives A1 20.8\% (identical) and A3 21.3\% (vs.\ 21.9\%). The 0.6-point A3 gap (configuration, seed or data) is not yet explained; the comparisons below are all within the rebuild and so are like for like.
   \item \textbf{The leak was real but small.} Removing it lowers A3 by 0.3 points at matched risk and by 1.9 points at default margins (14.6\ra12.7\%), and cuts A3's pinball wins from 5 to 3 of 10. A1 is unchanged because it already used the finished-before-admission rule. \textbf{The defensible headline is about 21\%;} the provisional 25\% upper end is withdrawn.
   \item \textbf{Peak-aware labels cost about a third.} Sizing every pod for its P99 hour reclaims 14.3\%, and for its busiest hour 12.9\%. This is below the 15--17\% that \cref{sec:peak} estimated from oracle slices, because prediction error compounds with the stricter target.
   \item \textbf{The history rule wins under peak-aware labels.} A3 falls behind A1 (13.0\% vs.\ 14.3\%; 12.2\% vs.\ 12.9\%) and wins on pinball in only 1--2 clusters. At the high end, the admission features carry no signal beyond the workload's own history.
 \end{itemize}
 
-\paragraph{Implication.} The \textsc{no-go} stands and is now firmer: with clean features the learned model and the history rule are tied at P90 and the rule is better at P99. The E6 hybrid (22.6\%) was fitted on the old features and has not yet been re-checked; its gain came from cold-start pods, which the leak does not affect, but the number should be treated as provisional until it is. For operators, the choice between about 21\% (P90 target) and about 13--14\% (peak-safe) is a service-level decision rather than a modelling one (\cref{sec:value}). The remaining cold-start share (61\% of test pods) is where better information, not a better model, could add reclaim, which makes E4 (resize after warm-up) the next experiment. Code: \texttt{code/e9/}.
+\paragraph{Implication.} The \textsc{no-go} stands and is now firmer: with clean features the learned model and the history rule are tied at P90 and the rule is better at P99. The E6 hybrid (22.6\%) was fitted on the old features and has not yet been re-checked; its gain came from cold-start pods, which the leak does not affect, but the number should be treated as provisional until it is. For operators, the choice between about 21\% (P90 target) and about 13--14\% (peak-safe) is a service-level decision rather than a modelling one (\cref{sec:value}). The remaining cold-start share (61\% of test pods) is where better information, not a better model, could add reclaim; resizing after the first hours was tested in \cref{sec:fallback} and did not help. Code: \texttt{code/e9/}.
