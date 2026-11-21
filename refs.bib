@@ -143,11 +143,15 @@
   year      = {2024}
 }
 
-@misc{xu2022igniter,
-  author       = {Xu, Fei and others},
-  title        = {{iGniter}: Interference-Aware {GPU} Resource Provisioning for Predictable {DNN} Inference in the Cloud},
-  year         = {2022},
-  howpublished = {arXiv:2211.01713 (IEEE TPDS)}
+@article{xu2022igniter,
+  author  = {Xu, Fei and Xu, Jianian and Chen, Jiabin and Chen, Li and Shang, Ruitao and Zhou, Zhi and Liu, Fangming},
+  title   = {{iGniter}: Interference-Aware {GPU} Resource Provisioning for Predictable {DNN} Inference in the Cloud},
+  journal = {IEEE Transactions on Parallel and Distributed Systems},
+  volume  = {34},
+  number  = {3},
+  pages   = {812--827},
+  year    = {2023},
+  doi     = {10.1109/TPDS.2022.3232715}
 }
 
 @inproceedings{hu2021helios,
@@ -313,4 +317,271 @@
   volume    = {139},
   year      = {2021},
   url       = {https://arxiv.org/abs/2012.07421}
+}
+
+@inproceedings{mohan2022synergy,
+  author    = {Mohan, Jayashree and Phanishayee, Amar and Kulkarni, Janardhan and Chidambaram, Vijay},
+  title     = {Looking Beyond {GPUs} for {DNN} Scheduling on Multi-Tenant Clusters},
+  booktitle = {USENIX Symposium on Operating Systems Design and Implementation (OSDI)},
+  year      = {2022},
+  pages     = {579--596},
+  url       = {https://www.usenix.org/conference/osdi22/presentation/mohan}
+}
+
+@inproceedings{zhao2020coda,
+  author    = {Zhao, Han and others},
+  title     = {{CODA}: Improving Resource Utilization by Slimming and Co-locating {DNN} and {CPU} Jobs},
+  booktitle = {IEEE International Conference on Distributed Computing Systems (ICDCS)},
+  year      = {2020},
+  url       = {https://www.cs.sjtu.edu.cn/~leng-jw/resources/Files/zhao20icdcs-coda.pdf}
+}
+
+
+@inproceedings{hu2024acme,
+  author    = {Hu, Qinghao and Ye, Zhisheng and Wang, Zerui and Wang, Guoteng and Zhang, Meng and Chen, Qiaoling and Sun, Peng and Lin, Dahua and Wang, Xiaolin and Luo, Yingwei and Wen, Yonggang and Zhang, Tianwei},
+  title     = {Characterization of Large Language Model Development in the Datacenter},
+  booktitle = {USENIX Symposium on Networked Systems Design and Implementation (NSDI)},
+  year      = {2024},
+  url       = {https://www.usenix.org/conference/nsdi24/presentation/hu}
+}
+
+@inproceedings{patel2024splitwise,
+  author    = {Patel, Pratyush and Choukse, Esha and Zhang, Chaojie and Shah, Aashaka and Goiri, {\'I}{\~n}igo and Maleki, Saeed and Bianchini, Ricardo},
+  title     = {Splitwise: Efficient Generative {LLM} Inference Using Phase Splitting},
+  booktitle = {ACM/IEEE International Symposium on Computer Architecture (ISCA)},
+  year      = {2024},
+  url       = {https://arxiv.org/abs/2311.18677}
+}
+
+@inproceedings{stojkovic2025dynamollm,
+  author    = {Stojkovic, Jovan and Zhang, Chaojie and Goiri, {\'I}{\~n}igo and Torrellas, Josep and Choukse, Esha},
+  title     = {{DynamoLLM}: Designing {LLM} Inference Clusters for Performance and Energy Efficiency},
+  booktitle = {IEEE International Symposium on High-Performance Computer Architecture (HPCA)},
+  year      = {2025},
+  doi       = {10.1109/HPCA61900.2025.00102},
+  url       = {https://arxiv.org/abs/2408.00741}
+}
+
+@misc{k8svpa,
+  author       = {{Kubernetes Authors}},
+  title        = {Vertical Pod Autoscaling},
+  howpublished = {\url{https://kubernetes.io/docs/concepts/workloads/autoscaling/vertical-pod-autoscale/}; recommender defaults in \url{https://github.com/kubernetes/autoscaler/blob/master/vertical-pod-autoscaler/pkg/recommender/config/config.go}},
+  note         = {Accessed November 2026},
+  year         = {2026}
+}
+
+@inproceedings{qiu2020firm,
+  author    = {Qiu, Haoran and Banerjee, Subho S. and Jha, Saurabh and Kalbarczyk, Zbigniew T. and Iyer, Ravishankar K.},
+  title     = {{FIRM}: An Intelligent Fine-grained Resource Management Framework for {SLO}-Oriented Microservices},
+  booktitle = {USENIX Symposium on Operating Systems Design and Implementation (OSDI)},
+  year      = {2020}
+}
+
+@inproceedings{zhang2021sinan,
+  author    = {Zhang, Yanqi and Hua, Weizhe and Zhou, Zhuangzhuang and Suh, G. Edward and Delimitrou, Christina},
+  title     = {Sinan: {ML}-Based and {QoS}-Aware Resource Management for Cloud Microservices},
+  booktitle = {ACM International Conference on Architectural Support for Programming Languages and Operating Systems (ASPLOS)},
+  pages     = {167--181},
+  year      = {2021}
+}
+
+@inproceedings{crankshaw2017clipper,
+  author    = {Crankshaw, Daniel and Wang, Xin and Zhou, Guilio and Franklin, Michael J. and Gonzalez, Joseph E. and Stoica, Ion},
+  title     = {Clipper: A Low-Latency Online Prediction Serving System},
+  booktitle = {USENIX Symposium on Networked Systems Design and Implementation (NSDI)},
+  year      = {2017}
+}
+
+@inproceedings{zhang2019mark,
+  author    = {Zhang, Chengliang and Yu, Minchen and Wang, Wei and Yan, Feng},
+  title     = {{MArk}: Exploiting Cloud Services for Cost-Effective, {SLO}-Aware Machine Learning Inference Serving},
+  booktitle = {USENIX Annual Technical Conference (ATC)},
+  year      = {2019}
+}
+
+@inproceedings{romero2021infaas,
+  author    = {Romero, Francisco and Li, Qian and Yadwadkar, Neeraja J. and Kozyrakis, Christos},
+  title     = {{INFaaS}: Automated Model-less Inference Serving},
+  booktitle = {USENIX Annual Technical Conference (ATC)},
+  year      = {2021}
+}
+
+@inproceedings{gunasekaran2022cocktail,
+  author    = {Gunasekaran, Jashwant Raj and Mishra, Cyan Subhra and Thinakaran, Prashanth and Sharma, Bikash and Kandemir, Mahmut Taylan and Das, Chita R.},
+  title     = {Cocktail: A Multidimensional Optimization for Model Serving in Cloud},
+  booktitle = {USENIX Symposium on Networked Systems Design and Implementation (NSDI)},
+  year      = {2022}
+}
+
+@inproceedings{gao2020dnnmem,
+  author    = {Gao, Yanjie and Liu, Yu and Zhang, Hongyu and Li, Zhengxian and Zhu, Yonghao and Lin, Haoxiang and Yang, Mao},
+  title     = {Estimating {GPU} Memory Consumption of Deep Learning Models},
+  booktitle = {ACM Joint European Software Engineering Conference and Symposium on the Foundations of Software Engineering (ESEC/FSE), Industry Track},
+  year      = {2020},
+  doi       = {10.1145/3368089.3417050}
+}
+
+@article{yeung2022horus,
+  author  = {Yeung, Gingfung and Borowiec, Damian and Yang, Renyu and Friday, Adrian and Harper, Richard and Garraghan, Peter},
+  title   = {Horus: Interference-Aware and Prediction-Based Scheduling in Deep Learning Systems},
+  journal = {IEEE Transactions on Parallel and Distributed Systems},
+  volume  = {33},
+  number  = {1},
+  pages   = {88--100},
+  year    = {2022}
+}
+
+@misc{yousefzadeh2026gpuestimation,
+  author        = {Yousefzadeh-Asl-Miandoab, Ehsan and Karimzadeh, Reza and Yorulmaz, Danyal and Ibragimov, Bulat and T{\"o}z{\"u}n, P{\i}nar},
+  title         = {{GPU} Memory and Utilization Estimation for Training-Aware Resource Management: Opportunities and Limitations},
+  eprint        = {2602.17817},
+  archivePrefix = {arXiv},
+  year          = {2026}
+}
+
+@inproceedings{li2022miso,
+  author    = {Li, Baolin and Patel, Tirthak and Samsi, Siddharth and Gadepally, Vijay and Tiwari, Devesh},
+  title     = {{MISO}: Exploiting Multi-Instance {GPU} Capability on Multi-Tenant Systems for Machine Learning},
+  booktitle = {ACM Symposium on Cloud Computing (SoCC)},
+  pages     = {173--189},
+  year      = {2022},
+  doi       = {10.1145/3542929.3563510}
+}
+
+@misc{tan2021migserving,
+  author        = {Tan, Cheng and Li, Zhichao and Zhang, Jian and Cao, Yu and Qi, Sikai and Liu, Zherui and Zhu, Yibo and Guo, Chuanxiong},
+  title         = {Serving {DNN} Models with Multi-Instance {GPUs}: A Case of the Reconfigurable Machine Scheduling Problem},
+  eprint        = {2109.11067},
+  archivePrefix = {arXiv},
+  year          = {2021}
+}
+
+@inproceedings{kim2022paris,
+  author    = {Kim, Yunseong and Choi, Yujeong and Rhu, Minsoo},
+  title     = {{PARIS} and {ELSA}: An Elastic Scheduling Algorithm for Reconfigurable Multi-{GPU} Inference Servers},
+  booktitle = {ACM/IEEE Design Automation Conference (DAC)},
+  year      = {2022}
+}
+
+@inproceedings{yu2020salus,
+  author    = {Yu, Peifeng and Chowdhury, Mosharaf},
+  title     = {Fine-Grained {GPU} Sharing Primitives for Deep Learning Applications},
+  booktitle = {Proceedings of Machine Learning and Systems (MLSys)},
+  volume    = {2},
+  year      = {2020},
+  url       = {https://proceedings.mlsys.org/paper_files/paper/2020/hash/d9cd83bc91b8c36a0c7c0fcca59228f2-Abstract.html}
+}
+
+@inproceedings{ghodsi2011drf,
+  author    = {Ghodsi, Ali and Zaharia, Matei and Hindman, Benjamin and Konwinski, Andy and Shenker, Scott and Stoica, Ion},
+  title     = {Dominant Resource Fairness: Fair Allocation of Multiple Resource Types},
+  booktitle = {USENIX Symposium on Networked Systems Design and Implementation (NSDI)},
+  year      = {2011},
+  url       = {https://www.usenix.org/conference/nsdi11/dominant-resource-fairness-fair-allocation-multiple-resource-types}
+}
+
+@inproceedings{grandl2014tetris,
+  author    = {Grandl, Robert and Ananthanarayanan, Ganesh and Kandula, Srikanth and Rao, Sriram and Akella, Aditya},
+  title     = {Multi-Resource Packing for Cluster Schedulers},
+  booktitle = {ACM SIGCOMM},
+  year      = {2014},
+  doi       = {10.1145/2619239.2626334}
+}
+
+@inproceedings{zhao2022muri,
+  author    = {Zhao, Yihao and Liu, Yuanqiang and Peng, Yanghua and Zhu, Yibo and Liu, Xuanzhe and Jin, Xin},
+  title     = {Multi-Resource Interleaving for Deep Learning Training},
+  booktitle = {ACM SIGCOMM},
+  year      = {2022},
+  url       = {https://xinjin.github.io/files/SIGCOMM22_Muri.pdf}
+}
+
+@inproceedings{ambati2020harvest,
+  author    = {Ambati, Pradeep and Goiri, {\'I}{\~n}igo and Frujeri, Felipe and Gun, Alper and Wang, Ke and Dolan, Brian and Corell, Brian and Pasupuleti, Sekhar and Moscibroda, Thomas and Elnikety, Sameh and Fontoura, Marcus and Bianchini, Ricardo},
+  title     = {Providing {SLOs} for Resource-Harvesting {VMs} in Cloud Platforms},
+  booktitle = {USENIX Symposium on Operating Systems Design and Implementation (OSDI)},
+  year      = {2020},
+  url       = {https://www.usenix.org/conference/osdi20/presentation/ambati}
+}
+
+@misc{qiao2025conserve,
+  author       = {Qiao, Yifan and Anzai, Shu and Yu, Shan and Ma, Haoran and Yang, Shuo and Wang, Yang and Kim, Miryung and Wu, Yongji and Zhou, Yang and Xing, Jiarong and Gonzalez, Joseph E. and Stoica, Ion and Xu, Harry},
+  title        = {{ConServe}: Fine-Grained {GPU} Harvesting for {LLM} Online and Offline Co-Serving},
+  year         = {2025},
+  howpublished = {arXiv:2410.01228}
+}
+
+@inproceedings{tibshirani2019covariate,
+  title     = {Conformal Prediction Under Covariate Shift},
+  author    = {Tibshirani, Ryan J. and Barber, Rina Foygel and Cand{\`e}s, Emmanuel and Ramdas, Aaditya},
+  booktitle = {Advances in Neural Information Processing Systems 32 (NeurIPS)},
+  year      = {2019}
+}
+
+@article{barber2023beyond,
+  title   = {Conformal Prediction Beyond Exchangeability},
+  author  = {Barber, Rina Foygel and Cand{\`e}s, Emmanuel J. and Ramdas, Aaditya and Tibshirani, Ryan J.},
+  journal = {The Annals of Statistics},
+  volume  = {51},
+  number  = {2},
+  pages   = {816--845},
+  year    = {2023},
+  doi     = {10.1214/23-AOS2276}
+}
+
+@inproceedings{gibbs2021adaptive,
+  title     = {Adaptive Conformal Inference Under Distribution Shift},
+  author    = {Gibbs, Isaac and Cand{\`e}s, Emmanuel},
+  booktitle = {Advances in Neural Information Processing Systems 34 (NeurIPS)},
+  year      = {2021}
+}
+
+@article{kapoor2023leakage,
+  title   = {Leakage and the Reproducibility Crisis in Machine-Learning-Based Science},
+  author  = {Kapoor, Sayash and Narayanan, Arvind},
+  journal = {Patterns},
+  volume  = {4},
+  number  = {9},
+  pages   = {100804},
+  year    = {2023},
+  doi     = {10.1016/j.patter.2023.100804}
+}
+
+@inproceedings{pendlebury2019tesseract,
+  title     = {{TESSERACT}: Eliminating Experimental Bias in Malware Classification across Space and Time},
+  author    = {Pendlebury, Feargus and Pierazzi, Fabio and Jordaney, Roberto and Kinder, Johannes and Cavallaro, Lorenzo},
+  booktitle = {28th USENIX Security Symposium (USENIX Security 19)},
+  pages     = {729--746},
+  year      = {2019}
+}
+
+@inproceedings{arp2022dos,
+  title     = {Dos and Don'ts of Machine Learning in Computer Security},
+  author    = {Arp, Daniel and Quiring, Erwin and Pendlebury, Feargus and Warnecke, Alexander and Pierazzi, Fabio and Wressnegger, Christian and Cavallaro, Lorenzo and Rieck, Konrad},
+  booktitle = {31st USENIX Security Symposium (USENIX Security 22)},
+  pages     = {3971--3988},
+  year      = {2022}
+}
+
+@misc{bertinetto2020prereg,
+  title        = {The Pre-registration Experiment: An Alternative Publication Model for Machine Learning Research},
+  author       = {Bertinetto, Luca and Henriques, Jo{\~a}o F. and Albanie, Samuel and Paganini, Michela and Varol, G{\"u}l},
+  howpublished = {NeurIPS 2020 Workshop},
+  year         = {2020},
+  url          = {https://neurips.cc/virtual/2020/workshop/16158}
+}
+
+@inproceedings{yan2020puffer,
+  title     = {Learning in situ: a randomized experiment in video streaming},
+  author    = {Yan, Francis Y. and Ayers, Hudson and Zhu, Chenzhi and Fouladi, Sadjad and Hong, James and Zhang, Keyi and Levis, Philip and Winstein, Keith},
+  booktitle = {17th USENIX Symposium on Networked Systems Design and Implementation (NSDI 20)},
+  pages     = {495--511},
+  year      = {2020}
+}
+
+@misc{yeo2024preba,
+  author       = {Yeo, Gwangoo and Kim, Jiin and Choi, Yujeong and Rhu, Minsoo},
+  title        = {{PREBA}: A Hardware/Software Co-Design for Multi-Instance {GPU} based {AI} Inference Servers},
+  year         = {2024},
+  howpublished = {arXiv:2411.19114}
 }
